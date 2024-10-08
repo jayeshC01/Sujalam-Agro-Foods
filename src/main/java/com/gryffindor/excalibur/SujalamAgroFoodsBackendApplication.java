@@ -8,6 +8,7 @@ public class SujalamAgroFoodsBackendApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(SujalamAgroFoodsBackendApplication.class, args);
+		System.out.println("Sujalam Agro Foods Application started");
 	}
 
 }
