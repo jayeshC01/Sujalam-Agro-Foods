@@ -2,6 +2,7 @@ package com.gryffindor.excalibur.db;
 
 import jakarta.persistence.*;
 
+
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -36,6 +37,7 @@ public class Product implements Serializable {
 
     @Column(name="description")
     private String description;
+
 
     @Column(name="price", nullable = false)
     @Min(value = 0)
