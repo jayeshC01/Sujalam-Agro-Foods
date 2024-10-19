@@ -1,66 +1,50 @@
 package com.gryffindor.excalibur.db;
 
 import jakarta.persistence.*;
+
+
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+
+import java.io.Serializable;
+import java.util.UUID;
+
 
 @Entity
 @Data
-@Table(name= "PRODUCT")
-public class Product {
+@Table(name= "products")
+public class Product implements Serializable {
+    public enum Category {
+        EDIBLE,
+        NOT_EDIBLE
+    }
+
     @Id
-    @Column(name="ID", nullable = false)
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    @Column(name="id")
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private String id;
 
-    @Column(name="NAME", nullable = false)
-    private  String name;
+    @Column(name="category", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private Category category;
 
-    @Column(name="DESCRIPTION")
-    private  String description;
+    @Column(name="name", nullable = false)
+    @NotBlank(message = "Name cannot be null. Provide a name field")
+    private String name;
 
-    @Column(name="PRICE", nullable = false)
-    private long price;
+    @Column(name="description")
+    private String description;
 
-    @Column(name="QTY", nullable = false)
-    private int qty;
 
-    public int id() {
-        return id;
-    }
+    @Column(name="price", nullable = false)
+    @Min(value = 0)
+    @NotNull(message = "Price of an item cannot be null or <= 0")
+    private Long price;
 
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public String name() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String description() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public long price() {
-        return price;
-    }
-
-    public void setPrice(long price) {
-        this.price = price;
-    }
-
-    public int qty() {
-        return qty;
-    }
-
-    public void setQty(int qty) {
-        this.qty = qty;
-    }
+    @Column(name="quantity", nullable = false)
+    @Min(value = 0)
+    private Integer qty;
 }
