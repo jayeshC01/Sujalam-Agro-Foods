@@ -32,22 +32,9 @@ public class ProductResource {
     public ResponseEntity<String> addProduct(@RequestBody Product product) {
         return productService.addProduct(product);
     }
-  
-    @PutMapping("/product/{id}")
-    public ResponseEntity<String> updateProductById(@PathVariable String id, @RequestBody Product product) {
-        return productService.updateProductById(id, product);
-    }
 
     @DeleteMapping("/product/{id}")
     public ResponseEntity<String> deleteProductById(@PathVariable String id) {
-
-    @PutMapping("/{id}")
-    public ResponseEntity<String> updateProductById(@PathVariable Long id, @RequestBody Product product) {
-        return productService.updateProductById(id, product);
-    }
-
-    @DeleteMapping("/product/{id}")
-    public ResponseEntity<String> deleteProductById(@PathVariable Long id) {
         return productService.deleteProduct(id);
     }
 }
