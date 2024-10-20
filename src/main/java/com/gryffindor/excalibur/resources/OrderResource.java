@@ -16,26 +16,22 @@ public class OrderResource {
   private OrderService orderService;
 
   @GetMapping("/admin/order/{id}")
-  @PreAuthorize("hasAuthority('ADMIN')")
   public ResponseEntity<Order> getOrder(@PathVariable String id) {
     return orderService.getOrderById(id);
   }
 
   @GetMapping("/admin/orders")
-  @PreAuthorize("hasAuthority('ADMIN')")
   public ResponseEntity<List<Order>> getOrders() {
     return orderService.getAllOrders();
   }
 
   @GetMapping("/user/orders/customer/{id}")
-  @PreAuthorize("hasAuthority('USER')")
   public ResponseEntity<List<Order>> getCustomerOrder(@PathVariable String id) {
     return orderService.getOrdersForCustomer(id);
   }
 
   @PostMapping("/orders")
-  @PreAuthorize("hasAuthority('ADMIN') and hasAuthority('USER')")
-  public ResponseEntity<String> createOrder(@RequestParam String customerId,@RequestBody OrderRequest order) {
-    return orderService.addOrder(customerId, order);
+  public ResponseEntity<String> createOrder(@RequestBody OrderRequest order) {
+    return orderService.addOrder(order);
   }
 }
