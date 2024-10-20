@@ -30,13 +30,11 @@ public class ProductResource {
     }
 
     @PostMapping("/admin/product")
-    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> addProduct(@RequestBody Product product) {
         return productService.addProduct(product);
     }
 
     @DeleteMapping("/admin/product/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> deleteProductById(@PathVariable String id) {
         return productService.deleteProduct(id);
     }

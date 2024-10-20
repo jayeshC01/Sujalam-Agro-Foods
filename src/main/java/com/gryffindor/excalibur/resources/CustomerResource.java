@@ -26,17 +26,13 @@ public class CustomerResource {
 
   @Autowired
   AuthenticationManager authenticationManager;
-  @Autowired
-  private UserDetailServiceImpl userDetailService;
 
   @GetMapping("/admin/customer/{id}")
-  @PreAuthorize("hasAuthority('ADMIN')")
   public ResponseEntity<Customer> getCustomer(@PathVariable String id) {
     return customerService.getCustomer(id);
   }
 
   @GetMapping("/admin/customers")
-  @PreAuthorize("hasAuthority('ADMIN')")
   public ResponseEntity<List<Customer>> getCustomers() {
     return customerService.getAllCustomers();
   }
