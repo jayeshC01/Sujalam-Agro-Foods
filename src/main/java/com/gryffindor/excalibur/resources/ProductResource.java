@@ -4,6 +4,7 @@ import com.gryffindor.excalibur.db.Product;
 import com.gryffindor.excalibur.services.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,17 +24,19 @@ public class ProductResource {
         return productService.findByName(name);
     }
 
-     @GetMapping("/products")
+    @GetMapping("/products")
     public ResponseEntity<List<Product>> getAllProducts() {
         return productService.findAllProduct();
     }
 
-    @PostMapping("/product")
+    @PostMapping("/admin/product")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> addProduct(@RequestBody Product product) {
         return productService.addProduct(product);
     }
 
-    @DeleteMapping("/product/{id}")
+    @DeleteMapping("/admin/product/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> deleteProductById(@PathVariable String id) {
         return productService.deleteProduct(id);
     }
