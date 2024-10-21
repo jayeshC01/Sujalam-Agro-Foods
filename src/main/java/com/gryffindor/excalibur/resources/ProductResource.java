@@ -10,8 +10,12 @@ import java.util.List;
 
 @RestController
 public class ProductResource {
+    private final ProductService productService;
+
     @Autowired
-    private ProductService productService;
+    ProductResource(ProductService productService) {
+        this.productService = productService;
+    }
 
     @GetMapping("/product/{id}")
     public ResponseEntity<Product> getProductById(@PathVariable String id) {

@@ -12,20 +12,24 @@ import java.util.List;
 
 @RestController
 public class OrderResource {
-  @Autowired
-  private OrderService orderService;
+  private final OrderService orderService;
 
-  @GetMapping("/admin/order/{id}")
+  @Autowired
+  OrderResource(OrderService orderService) {
+    this.orderService = orderService;
+  }
+
+  @GetMapping("/order/{id}")
   public ResponseEntity<Order> getOrder(@PathVariable String id) {
     return orderService.getOrderById(id);
   }
 
-  @GetMapping("/admin/orders")
+  @GetMapping("/orders")
   public ResponseEntity<List<Order>> getOrders() {
     return orderService.getAllOrders();
   }
 
-  @GetMapping("/user/orders/customer/{id}")
+  @GetMapping("/customer/orders")
   public ResponseEntity<List<Order>> getCustomerOrder(@PathVariable String id) {
     return orderService.getOrdersForCustomer(id);
   }
