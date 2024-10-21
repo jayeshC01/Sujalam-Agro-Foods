@@ -1,5 +1,6 @@
 package com.gryffindor.excalibur.services;
 
+import com.gryffindor.excalibur.constants.OrderStatus;
 import com.gryffindor.excalibur.db.Customer;
 import com.gryffindor.excalibur.db.Order;
 import com.gryffindor.excalibur.db.OrderDetails;
@@ -56,7 +57,7 @@ public class OrderService {
       Order order = new Order();
       order.setOrderId(UUID.randomUUID().toString());
       order.setDate(new Date());
-      order.setOrderStatus(Order.OrderStatus.PENDING);
+      order.setOrderStatus(OrderStatus.PENDING);
       Customer customer = customerRepository.findById(orderRequest.getCustomerId()).orElse(null);
       if(customer != null) {
         order.setCustomer(customer);

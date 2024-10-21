@@ -1,5 +1,6 @@
 package com.gryffindor.excalibur.db;
 
+import com.gryffindor.excalibur.constants.Roles;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -14,10 +15,6 @@ import java.util.Date;
 @NoArgsConstructor
 @Table(name = "customers")
 public class Customer {
-  public enum Roles {
-    ADMIN,
-    USER
-  }
 
   @Id
   @Column(name = "id")

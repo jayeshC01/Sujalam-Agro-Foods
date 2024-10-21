@@ -1,10 +1,7 @@
 package com.gryffindor.excalibur.db;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
-
-import java.util.UUID;
 
 @Entity
 @Data
@@ -14,7 +11,7 @@ public class OrderDetails {
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   @Column(name = "id")
-  private String id = UUID.randomUUID().toString();
+  private String id;
 
   @ManyToOne
   @JoinColumn(name = "product_id", referencedColumnName = "id", nullable = false)

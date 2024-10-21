@@ -1,5 +1,6 @@
 package com.gryffindor.excalibur.db;
 
+import com.gryffindor.excalibur.constants.OrderStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -16,11 +17,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @Table(name = "orders")
 public class Order implements Serializable {
-  public enum OrderStatus {
-    PENDING,
-    COMPLETED,
-    CANCELED
-  }
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -41,7 +37,7 @@ public class Order implements Serializable {
   @Column(name = "order_total", nullable = false)
   private Long orderTotal;
 
-  @OneToMany(cascade = CascadeType.ALL)
+  @OneToMany(cascade = CascadeType.ALL, targetEntity = OrderDetails.class)
   @JoinColumn(name = "order_id", referencedColumnName = "id")
   private List<OrderDetails> orderDetails;
 }
