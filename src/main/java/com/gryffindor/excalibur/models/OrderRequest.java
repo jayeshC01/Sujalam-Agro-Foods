@@ -9,8 +9,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderRequest {
-  // TODO: Remove this later. Fetch this info from session.
-  private String customerId;
   private List<ProductRequest> product;
   private long orderTotal;
 

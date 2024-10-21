@@ -6,7 +6,6 @@ import com.gryffindor.excalibur.models.AuthenticationRequest;
 import com.gryffindor.excalibur.models.RegisterUser;
 import com.gryffindor.excalibur.services.CustomerService;
 import com.gryffindor.excalibur.utils.JwtUtils;
-import jakarta.annotation.security.RolesAllowed;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

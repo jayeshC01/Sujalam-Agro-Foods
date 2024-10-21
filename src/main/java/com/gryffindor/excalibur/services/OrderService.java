@@ -1,7 +1,6 @@
 package com.gryffindor.excalibur.services;
 
 import com.gryffindor.excalibur.constants.OrderStatus;
-import com.gryffindor.excalibur.db.Customer;
 import com.gryffindor.excalibur.db.Order;
 import com.gryffindor.excalibur.db.OrderDetails;
 import com.gryffindor.excalibur.db.Product;
@@ -14,17 +13,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class OrderService {
   private final OrderRepository orderRepository;
   private final CustomerRepository customerRepository;
+  private final MemberIdentityHandlerService memberIdentityHandlerService;
 
   @Autowired
-  OrderService(OrderRepository orderRepository, CustomerRepository customerRepository) {
+  OrderService(OrderRepository orderRepository, CustomerRepository customerRepository, MemberIdentityHandlerService memberIdentityHandlerService) {
     this.orderRepository = orderRepository;
     this.customerRepository = customerRepository;
+    this.memberIdentityHandlerService = memberIdentityHandlerService;
   }
 
   public ResponseEntity<List<Order>> getAllOrders() {
@@ -54,13 +54,9 @@ public class OrderService {
   public ResponseEntity<String> addOrder(OrderRequest orderRequest) {
     try {
       Order order = new Order();
-      order.setOrderId(UUID.randomUUID().toString());
       order.setDate(new Date());
       order.setOrderStatus(OrderStatus.PENDING);
-      Customer customer = customerRepository.findById(orderRequest.getCustomerId()).orElse(null);
-      if(customer != null) {
-        order.setCustomer(customer);
-      }
+      customerRepository.findById(memberIdentityHandlerService.getLoggedInMemberID()).ifPresent(order::setCustomer);
       order.setOrderTotal(orderRequest.getOrderTotal());
       List<OrderDetails> orderDetails =
           orderRequest.getProduct()
@@ -83,9 +79,9 @@ public class OrderService {
     }
   }
 
-  public ResponseEntity<List<Order>> getOrdersForCustomer(String customerId) {
+  public ResponseEntity<List<Order>> getOrdersForCustomer() {
     try {
-      List<Order> orders = orderRepository.getOrderByCustomerId(customerId);
+      List<Order> orders = orderRepository.getOrderByCustomerId(memberIdentityHandlerService.getLoggedInMemberID());
       if(orders.isEmpty()) {
         return ResponseEntity.noContent().build();
       }
