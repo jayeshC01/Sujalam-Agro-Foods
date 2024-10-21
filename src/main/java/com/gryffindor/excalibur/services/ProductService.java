@@ -16,11 +16,12 @@ import java.util.UUID;
 
 @Service
 public class ProductService {
+  private final ProductRepository productRepository;
 
   @Autowired
-  private ProductRepository productRepository;
-
-  ProductService() {}
+  ProductService(ProductRepository productRepository) {
+    this.productRepository = productRepository;
+  }
 
   public ResponseEntity<Product> findById(String id) {
     Product product = productRepository.findById(id).orElse(null);

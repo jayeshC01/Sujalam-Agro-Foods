@@ -12,21 +12,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 public class OrderService {
+  private final OrderRepository orderRepository;
+  private final CustomerRepository customerRepository;
 
   @Autowired
-  private OrderRepository orderRepository;
-
-  @Autowired
-  private CustomerRepository customerRepository;
-
-  OrderService() {}
+  OrderService(OrderRepository orderRepository, CustomerRepository customerRepository) {
+    this.orderRepository = orderRepository;
+    this.customerRepository = customerRepository;
+  }
 
   public ResponseEntity<List<Order>> getAllOrders() {
     try {
