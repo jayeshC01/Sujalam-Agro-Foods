@@ -1,7 +1,6 @@
 package com.gryffindor.excalibur.services;
 
 import com.gryffindor.excalibur.constants.OrderStatus;
-import com.gryffindor.excalibur.db.Customer;
 import com.gryffindor.excalibur.db.Order;
 import com.gryffindor.excalibur.db.OrderDetails;
 import com.gryffindor.excalibur.db.Product;
@@ -14,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class OrderService {
