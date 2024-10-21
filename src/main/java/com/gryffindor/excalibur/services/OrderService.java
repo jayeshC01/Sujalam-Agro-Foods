@@ -1,5 +1,6 @@
 package com.gryffindor.excalibur.services;
 
+import com.gryffindor.excalibur.constants.OrderStatus;
 import com.gryffindor.excalibur.db.Customer;
 import com.gryffindor.excalibur.db.Order;
 import com.gryffindor.excalibur.db.OrderDetails;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class OrderService {
@@ -50,12 +52,13 @@ public class OrderService {
     }
   }
 
-  public ResponseEntity<String> addOrder(String customerId, OrderRequest orderRequest) {
+  public ResponseEntity<String> addOrder(OrderRequest orderRequest) {
     try {
       Order order = new Order();
+      order.setOrderId(UUID.randomUUID().toString());
       order.setDate(new Date());
-      order.setOrderStatus(Order.OrderStatus.PENDING);
-      Customer customer = customerRepository.findById(customerId).orElse(null);
+      order.setOrderStatus(OrderStatus.PENDING);
+      Customer customer = customerRepository.findById(orderRequest.getCustomerId()).orElse(null);
       if(customer != null) {
         order.setCustomer(customer);
       }
@@ -69,6 +72,7 @@ public class OrderService {
                     product.setId(orderItem.getProductId());
                     orderDetail.setQuantity(orderItem.getQuantity());
                     orderDetail.setProduct(product);
+                    orderDetail.setTotal(500L);
                     return orderDetail;
                   }).toList();
       order.setOrderDetails(orderDetails);
