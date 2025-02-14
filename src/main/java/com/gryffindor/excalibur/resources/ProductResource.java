@@ -21,10 +21,6 @@ public class ProductResource {
         return productService.findById(id);
     }
 
-    @GetMapping("/product/name/{name}")
-    public ResponseEntity<Product> getProductByName(@PathVariable String name) {
-        return productService.findByName(name);
-    }
 
     @GetMapping("/products")
     public ResponseEntity<List<Product>> getAllProducts() {

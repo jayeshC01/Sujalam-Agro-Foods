@@ -1,16 +1,17 @@
 package com.gryffindor.excalibur.models;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.http.HttpStatus;
 
+@Builder
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@Data
-public class ErrorResponse {
-    private HttpStatus code;
+public class SimpleResponse<T> {
+    private HttpStatus status;
     private String message;
-    private String stackTrace;
-    private String details;
+    private T content;
 }
