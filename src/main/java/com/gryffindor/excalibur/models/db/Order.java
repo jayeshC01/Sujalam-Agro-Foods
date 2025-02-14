@@ -1,4 +1,4 @@
-package com.gryffindor.excalibur.db;
+package com.gryffindor.excalibur.models.db;
 
 import com.gryffindor.excalibur.constants.OrderStatus;
 import jakarta.persistence.*;
@@ -13,8 +13,6 @@ import java.util.UUID;
 
 @Entity
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 @Table(name = "orders")
 public class Order implements Serializable {
 
@@ -32,7 +30,7 @@ public class Order implements Serializable {
 
   @ManyToOne(cascade = CascadeType.ALL)
   @JoinColumn(name = "customer_id", referencedColumnName ="id", nullable = false)
-  private Customer customer;
+  private User user;
 
   @Column(name = "order_total", nullable = false)
   private Long orderTotal;

@@ -1,29 +1,31 @@
 package com.gryffindor.excalibur.services;
 
 import com.gryffindor.excalibur.constants.OrderStatus;
-import com.gryffindor.excalibur.db.Order;
-import com.gryffindor.excalibur.db.OrderDetails;
-import com.gryffindor.excalibur.db.Product;
+import com.gryffindor.excalibur.models.db.Order;
+import com.gryffindor.excalibur.models.db.OrderDetails;
+import com.gryffindor.excalibur.models.db.Product;
 import com.gryffindor.excalibur.models.OrderRequest;
-import com.gryffindor.excalibur.repository.CustomerRepository;
+import com.gryffindor.excalibur.repository.UserRepository;
 import com.gryffindor.excalibur.repository.OrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.Date;
 import java.util.List;
 
 @Service
 public class OrderService {
   private final OrderRepository orderRepository;
-  private final CustomerRepository customerRepository;
+  private final UserRepository userRepository;
   private final MemberIdentityHandlerService memberIdentityHandlerService;
 
   @Autowired
-  OrderService(OrderRepository orderRepository, CustomerRepository customerRepository, MemberIdentityHandlerService memberIdentityHandlerService) {
+  OrderService(OrderRepository orderRepository, UserRepository userRepository, MemberIdentityHandlerService memberIdentityHandlerService) {
     this.orderRepository = orderRepository;
-    this.customerRepository = customerRepository;
+    this.userRepository = userRepository;
     this.memberIdentityHandlerService = memberIdentityHandlerService;
   }
 
@@ -51,12 +53,13 @@ public class OrderService {
     }
   }
 
+  @Transactional
   public ResponseEntity<String> addOrder(OrderRequest orderRequest) {
     try {
       Order order = new Order();
       order.setDate(new Date());
       order.setOrderStatus(OrderStatus.PENDING);
-      customerRepository.findById(memberIdentityHandlerService.getLoggedInMemberID()).ifPresent(order::setCustomer);
+      userRepository.findById(memberIdentityHandlerService.getLoggedInMemberID()).ifPresent(order::setUser);
       order.setOrderTotal(orderRequest.getOrderTotal());
       List<OrderDetails> orderDetails =
           orderRequest.getProduct()
@@ -81,7 +84,7 @@ public class OrderService {
 
   public ResponseEntity<List<Order>> getOrdersForCustomer() {
     try {
-      List<Order> orders = orderRepository.getOrderByCustomerId(memberIdentityHandlerService.getLoggedInMemberID());
+      List<Order> orders = orderRepository.getOrderByUserId(memberIdentityHandlerService.getLoggedInMemberID());
       if(orders.isEmpty()) {
         return ResponseEntity.noContent().build();
       }

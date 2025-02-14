@@ -1,20 +1,16 @@
-package com.gryffindor.excalibur.db;
+package com.gryffindor.excalibur.models.db;
 
 import com.gryffindor.excalibur.constants.Roles;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.Date;
 
 @Entity
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Table(name = "customers")
-public class Customer {
+@Table(name = "users")
+public class User {
 
   @Id
   @Column(name = "id")

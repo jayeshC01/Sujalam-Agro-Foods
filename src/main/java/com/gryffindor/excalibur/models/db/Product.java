@@ -1,4 +1,4 @@
-package com.gryffindor.excalibur.db;
+package com.gryffindor.excalibur.models.db;
 
 import jakarta.persistence.*;
 

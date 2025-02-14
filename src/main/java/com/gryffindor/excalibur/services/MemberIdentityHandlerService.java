@@ -1,7 +1,7 @@
 package com.gryffindor.excalibur.services;
 
-import com.gryffindor.excalibur.db.Customer;
-import com.gryffindor.excalibur.repository.CustomerRepository;
+import com.gryffindor.excalibur.models.db.User;
+import com.gryffindor.excalibur.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -10,18 +10,18 @@ import java.util.Optional;
 
 @Service
 public class MemberIdentityHandlerService {
-  private final CustomerRepository customerRepository;
+  private final UserRepository userRepository;
 
   @Autowired
-  public MemberIdentityHandlerService(CustomerRepository customerRepository) {
-    this.customerRepository = customerRepository;
+  public MemberIdentityHandlerService(UserRepository userRepository) {
+    this.userRepository = userRepository;
   }
 
   public String getLoggedInMemberID() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     String username = authentication.getName();
-    Optional<Customer> user = customerRepository.findByUserName(username);
-    return user.map(Customer::getId).orElseThrow();
+    Optional<User> user = userRepository.findByUserName(username);
+    return user.map(User::getId).orElseThrow();
 
   }
 }
