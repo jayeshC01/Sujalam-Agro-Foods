@@ -1,11 +1,11 @@
 package com.gryffindor.excalibur.resources;
 
 import com.gryffindor.excalibur.constants.Roles;
+import com.gryffindor.excalibur.models.SimpleResponse;
 import com.gryffindor.excalibur.models.db.User;
 import com.gryffindor.excalibur.models.RegisterUser;
 import com.gryffindor.excalibur.services.usersService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -19,22 +19,22 @@ public class usersResource {
   }
 
   @GetMapping("/customer/{id}")
-  public ResponseEntity<User> getCustomer(@PathVariable String id) {
+  public SimpleResponse<User> getCustomer(@PathVariable String id) {
     return usersService.getCustomer(id);
   }
 
   @GetMapping("/customers")
-  public ResponseEntity<List<User>> getCustomers() {
+  public SimpleResponse<List<User>> getCustomers() {
     return usersService.getAllCustomers();
   }
 
   @PostMapping("/customer/register")
-  public ResponseEntity<String> registerCustomer(@RequestBody RegisterUser user) {
+  public SimpleResponse<String> registerCustomer(@RequestBody RegisterUser user) {
     return usersService.addUser(user, Roles.USER);
   }
 
   @PostMapping("/admin/register")
-  public ResponseEntity<String> registerAdmin(@RequestBody RegisterUser user) {
+  public SimpleResponse<String> registerAdmin(@RequestBody RegisterUser user) {
     return usersService.addUser(user, Roles.ADMIN);
   }
 

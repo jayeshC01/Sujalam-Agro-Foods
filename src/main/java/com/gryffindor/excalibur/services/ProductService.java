@@ -1,5 +1,6 @@
 package com.gryffindor.excalibur.services;
 
+import com.gryffindor.excalibur.models.SimpleResponse;
 import com.gryffindor.excalibur.models.db.Product;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -8,7 +9,6 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -25,49 +25,67 @@ public class ProductService {
     this.validator = validator;
   }
 
-  public ResponseEntity<Product> findById(String id) {
+  public SimpleResponse<Product> findById(String id) {
     Product product = productRepository.findById(id)
             .orElseThrow(()-> new EntityNotFoundException("Product with id "+id+" not found"));
-    return ResponseEntity.ok(product);
+    return SimpleResponse.<Product>builder()
+            .status(HttpStatus.OK)
+            .message("Success")
+            .content(product)
+            .build();
   }
 
-  public ResponseEntity<List<Product>> findAllProduct() {
+  public SimpleResponse<List<Product>> findAllProduct() {
     List<Product> products = productRepository.findAll();
     if(products.isEmpty()) {
      throw new EntityNotFoundException("Products not found");
     }
-    return ResponseEntity.ok(products);
+      return SimpleResponse.<List<Product>>builder()
+              .status(HttpStatus.OK)
+              .message("Success")
+              .content(products)
+              .build();
   }
 
   @Transactional
-  public ResponseEntity<String> addProduct(Product product) {
+  public SimpleResponse<String> addProduct(Product product) {
       Set<ConstraintViolation<Product>> violations = validator.validate(product);
       if (!violations.isEmpty()) {
         throw new ConstraintViolationException(violations);
       }
 
       productRepository.save(product);
-      return new ResponseEntity<>("Product Added successfully", HttpStatus.CREATED);
+      return SimpleResponse.<String>builder()
+              .status(HttpStatus.CREATED)
+              .message("Product Added Successfully")
+              .build();
   }
 
   @Transactional
-  public ResponseEntity<String> updateProductById(String id, Product product) {
+  public SimpleResponse<Product> updateProductById(String id, Product product) {
     Product existingProduct = productRepository.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("Product with id "+id+" not found. Updation cannot be performed"));
+            .orElseThrow(() -> new EntityNotFoundException("Product with id "+id+" not found. Record cannot be updated"));
 
     existingProduct.setName(product.getName());
     existingProduct.setPrice(product.getPrice());
-    productRepository.save(existingProduct);
+      Product updatedProduct = productRepository.save(existingProduct);
 
-    return new ResponseEntity<>("Product updated successfully", HttpStatus.OK);
+      return SimpleResponse.<Product>builder()
+              .status(HttpStatus.OK)
+              .message("Product Updated Successfully")
+              .content(updatedProduct)
+              .build();
   }
 
   @Transactional
-  public ResponseEntity<String> deleteProduct(String id) {
+  public SimpleResponse<String> deleteProduct(String id) {
       productRepository.findById(id)
-              .orElseThrow(() -> new EntityNotFoundException("Product with id "+id+" not found. Deletion cannot be performed"));
+              .orElseThrow(() -> new EntityNotFoundException("Product with id "+id+" not found. Record cannot be deleted"));
 
       productRepository.deleteById(id);
-      return new ResponseEntity<>("Product deleted successfully", HttpStatus.OK);
+      return SimpleResponse.<String>builder()
+              .status(HttpStatus.OK)
+              .message("Product Deleted Successfully")
+              .build();
   }
 }
