@@ -1,6 +1,6 @@
 package com.gryffindor.excalibur.services;
 
-import com.gryffindor.excalibur.db.Product;
+import com.gryffindor.excalibur.models.db.Product;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;

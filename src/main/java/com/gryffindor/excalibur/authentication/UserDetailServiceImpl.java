@@ -1,7 +1,7 @@
 package com.gryffindor.excalibur.authentication;
 
-import com.gryffindor.excalibur.db.Customer;
-import com.gryffindor.excalibur.repository.CustomerRepository;
+import com.gryffindor.excalibur.models.db.User;
+import com.gryffindor.excalibur.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -13,11 +13,11 @@ import java.util.Optional;
 public class UserDetailServiceImpl implements UserDetailsService {
 
   @Autowired
-  CustomerRepository customerRepository;
+  UserRepository userRepository;
 
   @Override
   public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-    Optional<Customer> user = customerRepository.findByUserName(username);
+    Optional<User> user = userRepository.findByUserName(username);
     return user.map(UserDetailsImpl::new)
             .orElseThrow(() -> new UsernameNotFoundException(username));
   }

@@ -1,6 +1,6 @@
 package com.gryffindor.excalibur.authentication;
 
-import com.gryffindor.excalibur.db.Customer;
+import com.gryffindor.excalibur.models.db.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,11 +15,11 @@ public class UserDetailsImpl implements UserDetails {
   private final List<GrantedAuthority> authorities;
 
 
-  UserDetailsImpl(Customer customer) {
-    username = customer.getUserName();
-    password = customer.getPassword();
+  UserDetailsImpl(User user) {
+    username = user.getUserName();
+    password = user.getPassword();
     authorities = Collections.singletonList(
-        new SimpleGrantedAuthority(customer.getRole().toString()));
+        new SimpleGrantedAuthority(user.getRole().toString()));
 
   }
 

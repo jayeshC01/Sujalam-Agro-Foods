@@ -1,10 +1,10 @@
 package com.gryffindor.excalibur.resources;
 
 import com.gryffindor.excalibur.constants.Roles;
-import com.gryffindor.excalibur.db.Customer;
+import com.gryffindor.excalibur.models.db.User;
 import com.gryffindor.excalibur.models.AuthenticationRequest;
 import com.gryffindor.excalibur.models.RegisterUser;
-import com.gryffindor.excalibur.services.CustomerService;
+import com.gryffindor.excalibur.services.usersService;
 import com.gryffindor.excalibur.utils.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -18,34 +18,34 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-public class CustomerResource {
-  private final CustomerService customerService;
+public class usersResource {
+  private final usersService usersService;
   private final AuthenticationManager authenticationManager;
 
   @Autowired
-  CustomerResource(CustomerService customerService, AuthenticationManager authenticationManager) {
-    this.customerService = customerService;
+  usersResource(usersService usersService, AuthenticationManager authenticationManager) {
+    this.usersService = usersService;
     this.authenticationManager = authenticationManager;
   }
 
   @GetMapping("/customer/{id}")
-  public ResponseEntity<Customer> getCustomer(@PathVariable String id) {
-    return customerService.getCustomer(id);
+  public ResponseEntity<User> getCustomer(@PathVariable String id) {
+    return usersService.getCustomer(id);
   }
 
   @GetMapping("/customers")
-  public ResponseEntity<List<Customer>> getCustomers() {
-    return customerService.getAllCustomers();
+  public ResponseEntity<List<User>> getCustomers() {
+    return usersService.getAllCustomers();
   }
 
   @PostMapping("/customer/register")
   public ResponseEntity<String> registerCustomer(@RequestBody RegisterUser user) {
-    return customerService.addUser(user, Roles.USER);
+    return usersService.addUser(user, Roles.USER);
   }
 
   @PostMapping("/admin/register")
   public ResponseEntity<String> registerAdmin(@RequestBody RegisterUser user) {
-    return customerService.addUser(user, Roles.ADMIN);
+    return usersService.addUser(user, Roles.ADMIN);
   }
 
   @PostMapping("/authenticate")
