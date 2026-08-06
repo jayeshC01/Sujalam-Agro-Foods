@@ -2,11 +2,11 @@ package com.gryffindor.excalibur.services;
 
 import com.gryffindor.excalibur.models.db.User;
 import com.gryffindor.excalibur.repository.UserRepository;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import java.util.Optional;
 
 @Service
 public class MemberIdentityHandlerService {
@@ -22,6 +22,5 @@ public class MemberIdentityHandlerService {
     String username = authentication.getName();
     Optional<User> user = userRepository.findByUserName(username);
     return user.map(User::getId).orElseThrow();
-
   }
 }

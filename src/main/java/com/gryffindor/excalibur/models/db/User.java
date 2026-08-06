@@ -3,9 +3,8 @@ package com.gryffindor.excalibur.models.db;
 import com.gryffindor.excalibur.constants.Roles;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import lombok.*;
-
 import java.util.Date;
+import lombok.*;
 
 @Entity
 @Data
@@ -18,7 +17,7 @@ public class User {
   private String id;
 
   @Column(name = "first_name", nullable = false)
-  @NotBlank(message ="First name cannot be null")
+  @NotBlank(message = "First name cannot be null")
   private String firstName;
 
   @Column(name = "last_name")
@@ -31,7 +30,7 @@ public class User {
   @NotBlank(message = "user name cannot be empty")
   private String userName;
 
-  @Column(name= "password", nullable = false)
+  @Column(name = "password", nullable = false)
   @NotBlank(message = "password cannot be empty")
   private String password;
 
