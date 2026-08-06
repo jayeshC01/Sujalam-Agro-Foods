@@ -1,8 +1,9 @@
 plugins {
 	id 'java'
+	id 'jacoco'
+	id 'com.diffplug.spotless' version '8.9.0'
 	id 'org.springframework.boot' version '3.3.4'
 	id 'io.spring.dependency-management' version '1.1.6'
-	id 'org.asciidoctor.jvm.convert' version '3.3.2'
 }
 
 group = 'com.gryffindor'
@@ -25,7 +26,7 @@ configurations {
 }
 
 ext {
-	set('snippetsDir', file("build/generated-snippets"))
+	snippetsDir = file('build/generated-snippets')
 }
 
 dependencies {
@@ -52,12 +53,61 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+jacoco {
+	toolVersion = '0.8.12'
+}
+
+spotless {
+	java {
+		target 'src/*/java/**/*.java'
+		googleJavaFormat()
+		removeUnusedImports()
+		trimTrailingWhitespace()
+		endWithNewline()
+	}
+}
+
+def coverageExcludes = [
+	'com/gryffindor/excalibur/SujalamAgroFoodsBackendApplication.class'
+]
+
 tasks.named('test') {
 	outputs.dir snippetsDir
 	useJUnitPlatform()
+	finalizedBy jacocoTestReport
 }
 
-tasks.named('asciidoctor') {
-	inputs.dir snippetsDir
+tasks.named('jacocoTestReport') {
 	dependsOn test
+	reports {
+		xml.required = true
+		html.required = true
+	}
+}
+
+tasks.named('jacocoTestCoverageVerification') {
+	dependsOn jacocoTestReport
+	violationRules {
+		rule {
+			limit {
+				counter = 'INSTRUCTION'
+				value = 'COVEREDRATIO'
+				minimum = 0.70
+			}
+		}
+	}
+}
+
+afterEvaluate {
+	['jacocoTestReport', 'jacocoTestCoverageVerification'].each { taskName ->
+		tasks.named(taskName) {
+			classDirectories.setFrom(files(classDirectories.files.collect {
+				fileTree(dir: it, exclude: coverageExcludes)
+			}))
+		}
+	}
+}
+
+tasks.named('check') {
+	dependsOn jacocoTestCoverageVerification
 }

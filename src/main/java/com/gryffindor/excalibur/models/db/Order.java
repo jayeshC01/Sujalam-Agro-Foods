@@ -2,14 +2,11 @@ package com.gryffindor.excalibur.models.db;
 
 import com.gryffindor.excalibur.constants.OrderStatus;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import lombok.Data;
 
 @Entity
 @Data
@@ -29,7 +26,7 @@ public class Order implements Serializable {
   private OrderStatus orderStatus;
 
   @ManyToOne(cascade = CascadeType.ALL)
-  @JoinColumn(name = "customer_id", referencedColumnName ="id", nullable = false)
+  @JoinColumn(name = "customer_id", referencedColumnName = "id", nullable = false)
   private User user;
 
   @Column(name = "order_total", nullable = false)

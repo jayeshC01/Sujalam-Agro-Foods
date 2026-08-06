@@ -11,7 +11,7 @@ import org.springframework.http.HttpStatus;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SimpleResponse<T> {
-    private HttpStatus status;
-    private String message;
-    private T content;
+  private HttpStatus status;
+  private String message;
+  private T content;
 }

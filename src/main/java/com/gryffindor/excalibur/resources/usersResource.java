@@ -1,13 +1,13 @@
 package com.gryffindor.excalibur.resources;
 
 import com.gryffindor.excalibur.constants.Roles;
-import com.gryffindor.excalibur.models.db.User;
 import com.gryffindor.excalibur.models.RegisterUser;
+import com.gryffindor.excalibur.models.db.User;
 import com.gryffindor.excalibur.services.usersService;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
 public class usersResource {
@@ -39,17 +39,14 @@ public class usersResource {
   }
 
   /**
-  @PostMapping("/authenticate")
-  public ResponseEntity<String> authenticateCustomer(@RequestBody AuthenticationRequest authenticationDetails) {
-    try {
-      Authentication authentication = authenticationManager.authenticate(
-        new UsernamePasswordAuthenticationToken(authenticationDetails.getUsername(), authenticationDetails.getPassword()));
-    SecurityContextHolder.getContext().setAuthentication(authentication);
-    String token = JwtUtils.generateToken(authentication);
-    return ResponseEntity.ok(token);
-  } catch (BadCredentialsException e) {
-    return new ResponseEntity<>("Invalid password or error", HttpStatus.BAD_REQUEST);
-    }
-  }
-  */
+   * @PostMapping("/authenticate") public ResponseEntity<String> authenticateCustomer(@RequestBody
+   * AuthenticationRequest authenticationDetails) { try { Authentication authentication =
+   * authenticationManager.authenticate( new
+   * UsernamePasswordAuthenticationToken(authenticationDetails.getUsername(),
+   * authenticationDetails.getPassword()));
+   * SecurityContextHolder.getContext().setAuthentication(authentication); String token =
+   * JwtUtils.generateToken(authentication); return ResponseEntity.ok(token); } catch
+   * (BadCredentialsException e) { return new ResponseEntity<>("Invalid password or error",
+   * HttpStatus.BAD_REQUEST); } }
+   */
 }

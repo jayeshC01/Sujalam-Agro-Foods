@@ -7,8 +7,8 @@ import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfi
 @SpringBootApplication(exclude = {SecurityAutoConfiguration.class})
 public class SujalamAgroFoodsBackendApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(SujalamAgroFoodsBackendApplication.class, args);
-		System.out.println("Sujalam Agro Foods Application started");
-	}
+  public static void main(String[] args) {
+    SpringApplication.run(SujalamAgroFoodsBackendApplication.class, args);
+    System.out.println("Sujalam Agro Foods Application started");
+  }
 }

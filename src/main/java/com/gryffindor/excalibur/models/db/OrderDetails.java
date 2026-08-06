@@ -20,6 +20,6 @@ public class OrderDetails {
   @Column(name = "quantity")
   private Integer quantity;
 
-  @Column(name= "sub_total")
+  @Column(name = "sub_total")
   private Long total;
 }

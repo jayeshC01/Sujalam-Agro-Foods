@@ -1,16 +1,16 @@
-//package com.gryffindor.excalibur.authentication;
+// package com.gryffindor.excalibur.authentication;
 //
-//import com.gryffindor.excalibur.models.db.User;
-//import com.gryffindor.excalibur.repository.UserRepository;
-//import org.springframework.beans.factory.annotation.Autowired;
-//import org.springframework.security.core.userdetails.UserDetails;
-//import org.springframework.security.core.userdetails.UserDetailsService;
-//import org.springframework.security.core.userdetails.UsernameNotFoundException;
-//import org.springframework.stereotype.Service;
-//import java.util.Optional;
+// import com.gryffindor.excalibur.models.db.User;
+// import com.gryffindor.excalibur.repository.UserRepository;
+// import org.springframework.beans.factory.annotation.Autowired;
+// import org.springframework.security.core.userdetails.UserDetails;
+// import org.springframework.security.core.userdetails.UserDetailsService;
+// import org.springframework.security.core.userdetails.UsernameNotFoundException;
+// import org.springframework.stereotype.Service;
+// import java.util.Optional;
 //
-//@Service
-//public class UserDetailServiceImpl implements UserDetailsService {
+// @Service
+// public class UserDetailServiceImpl implements UserDetailsService {
 //
 //  @Autowired
 //  UserRepository userRepository;
@@ -21,4 +21,4 @@
 //    return user.map(UserDetailsImpl::new)
 //            .orElseThrow(() -> new UsernameNotFoundException(username));
 //  }
-//}
+// }
