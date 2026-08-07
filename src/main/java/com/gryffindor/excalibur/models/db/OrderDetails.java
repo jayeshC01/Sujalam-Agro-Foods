@@ -1,12 +1,22 @@
 package com.gryffindor.excalibur.models.db;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 @Entity
 @Data
-@Table(name = "order_details")
-public class OrderDetails {
+@EqualsAndHashCode(callSuper = false)
+@Table(
+    name = "order_details",
+    indexes = {@Index(name = "idx_order_details_order_id", columnList = "order_id")})
+public class OrderDetails extends AuditStamp {
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -14,12 +24,28 @@ public class OrderDetails {
   private String id;
 
   @ManyToOne
+  @JoinColumn(name = "order_id", referencedColumnName = "id", nullable = false)
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  @JsonIgnore
+  private Order order;
+
+  @ManyToOne
   @JoinColumn(name = "product_id", referencedColumnName = "id", nullable = false)
   private Product product;
 
-  @Column(name = "quantity")
+  @Column(name = "quantity", nullable = false)
+  @NotNull(message = "Quantity cannot be null")
+  @Min(value = 1, message = "Quantity must be at least 1")
   private Integer quantity;
 
-  @Column(name = "sub_total")
-  private Long total;
+  @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
+  @NotNull(message = "Unit price cannot be null")
+  @DecimalMin(value = "0.0", message = "Unit price cannot be negative")
+  private BigDecimal unitPrice;
+
+  @Column(name = "sub_total", nullable = false, precision = 12, scale = 2)
+  @NotNull(message = "Sub total cannot be null")
+  @DecimalMin(value = "0.0", message = "Sub total cannot be negative")
+  private BigDecimal subTotal;
 }
