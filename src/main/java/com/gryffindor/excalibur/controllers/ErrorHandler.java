@@ -5,11 +5,22 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ErrorHandler {
+
+  @ExceptionHandler(AccessDeniedException.class)
+  public ResponseEntity<ErrorResponse> handleAccessDeniedException(
+      AccessDeniedException exception) {
+    ErrorResponse errorResponse = new ErrorResponse();
+    errorResponse.setCode(HttpStatus.FORBIDDEN);
+    errorResponse.setMessage(exception.getMessage());
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+  }
 
   @ExceptionHandler(EntityNotFoundException.class)
   public ResponseEntity<ErrorResponse> handleEntityNotFoundException(

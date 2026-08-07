@@ -1,5 +1,6 @@
 package com.gryffindor.excalibur.services;
 
+import com.gryffindor.excalibur.authentication.FirebasePrincipal;
 import com.gryffindor.excalibur.models.db.User;
 import com.gryffindor.excalibur.repository.UserRepository;
 import java.util.Optional;
@@ -17,10 +18,18 @@ public class MemberIdentityHandlerService {
     this.userRepository = userRepository;
   }
 
-  public String getLoggedInMemberID() {
+  public FirebasePrincipal getCurrentFirebasePrincipal() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    String username = authentication.getName();
-    Optional<User> user = userRepository.findByUserName(username);
-    return user.map(User::getId).orElseThrow();
+    return (FirebasePrincipal) authentication.getPrincipal();
+  }
+
+  public User getLoggedInUser() {
+    String firebaseUid = getCurrentFirebasePrincipal().uid();
+    Optional<User> user = userRepository.findByFirebaseUid(firebaseUid);
+    return user.orElseThrow();
+  }
+
+  public String getLoggedInMemberID() {
+    return getLoggedInUser().getId();
   }
 }

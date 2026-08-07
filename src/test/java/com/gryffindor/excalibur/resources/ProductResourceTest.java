@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gryffindor.excalibur.models.db.Product;
 import com.gryffindor.excalibur.services.ProductService;
+import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,7 +55,7 @@ class ProductResourceTest {
   void addProduct_returnsCreated() throws Exception {
     Product product = new Product();
     product.setName("Rice");
-    product.setPrice(100L);
+    product.setPrice(new BigDecimal("100.00"));
     product.setQty(5);
     product.setCategory(Product.Category.EDIBLE);
 

@@ -7,10 +7,13 @@ import static org.mockito.Mockito.when;
 
 import com.gryffindor.excalibur.constants.OrderStatus;
 import com.gryffindor.excalibur.models.OrderRequest;
+import com.gryffindor.excalibur.models.db.Address;
 import com.gryffindor.excalibur.models.db.Order;
+import com.gryffindor.excalibur.models.db.Product;
 import com.gryffindor.excalibur.models.db.User;
 import com.gryffindor.excalibur.repository.OrderRepository;
-import com.gryffindor.excalibur.repository.UserRepository;
+import com.gryffindor.excalibur.repository.ProductRepository;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +29,7 @@ class OrderServiceTest {
 
   @Mock private OrderRepository orderRepository;
 
-  @Mock private UserRepository userRepository;
+  @Mock private ProductRepository productRepository;
 
   @Mock private MemberIdentityHandlerService memberIdentityHandlerService;
 
@@ -34,7 +37,20 @@ class OrderServiceTest {
 
   @BeforeEach
   void setUp() {
-    orderService = new OrderService(orderRepository, userRepository, memberIdentityHandlerService);
+    orderService =
+        new OrderService(orderRepository, productRepository, memberIdentityHandlerService);
+  }
+
+  private Address address() {
+    Address address = new Address();
+    address.setRecipientName("John Doe");
+    address.setPhoneNumber("9998887777");
+    address.setAddressLine1("123 Main St");
+    address.setCity("Surat");
+    address.setState("Gujarat");
+    address.setPostalCode("395007");
+    address.setCountry("India");
+    return address;
   }
 
   @Test
@@ -78,16 +94,20 @@ class OrderServiceTest {
   }
 
   @Test
-  void addOrder_savesOrder_forLoggedInUser() {
-    when(memberIdentityHandlerService.getLoggedInMemberID()).thenReturn("u1");
+  void addOrder_computesTotalFromProductPrice_forLoggedInUser() {
     User user = new User();
     user.setId("u1");
-    when(userRepository.findById("u1")).thenReturn(Optional.of(user));
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
+
+    Product product = new Product();
+    product.setId("p1");
+    product.setPrice(new BigDecimal("50.00"));
+    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
 
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setQuantity(2);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), 1000L);
+    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
 
     ResponseEntity<String> response = orderService.addOrder(orderRequest);
 
@@ -98,7 +118,8 @@ class OrderServiceTest {
                 o ->
                     o.getOrderStatus() == OrderStatus.PENDING
                         && o.getUser() == user
-                        && o.getOrderDetails().size() == 1));
+                        && o.getOrderDetails().size() == 1
+                        && o.getOrderTotal().compareTo(new BigDecimal("100.00")) == 0));
   }
 
   @Test

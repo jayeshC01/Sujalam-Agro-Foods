@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gryffindor.excalibur.models.OrderRequest;
+import com.gryffindor.excalibur.models.db.Address;
 import com.gryffindor.excalibur.models.db.Order;
 import com.gryffindor.excalibur.services.OrderService;
 import java.util.List;
@@ -62,7 +63,17 @@ class OrderResourceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setQuantity(1);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), 500L);
+
+    Address address = new Address();
+    address.setRecipientName("John Doe");
+    address.setPhoneNumber("9998887777");
+    address.setAddressLine1("123 Main St");
+    address.setCity("Surat");
+    address.setState("Gujarat");
+    address.setPostalCode("395007");
+    address.setCountry("India");
+
+    OrderRequest orderRequest = new OrderRequest(List.of(item), address);
 
     when(orderService.addOrder(any()))
         .thenReturn(new ResponseEntity<>("Order Placed Successfully", HttpStatus.OK));
