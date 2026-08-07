@@ -1,16 +1,22 @@
 package com.gryffindor.excalibur.models.db;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Entity
 @Data
-@Table(name = "products")
-public class Product implements Serializable {
+@EqualsAndHashCode(callSuper = false)
+@Table(
+    name = "products",
+    indexes = {@Index(name = "idx_products_category", columnList = "category")})
+public class Product extends AuditStamp implements Serializable {
   public enum Category {
     EDIBLE,
     NOT_EDIBLE
@@ -25,19 +31,20 @@ public class Product implements Serializable {
   @Enumerated(EnumType.STRING)
   private Category category;
 
-  @Column(name = "name", nullable = false)
+  @Column(name = "name", nullable = false, unique = true)
   @NotBlank(message = "Name cannot be null. Provide a name field")
   private String name;
 
-  @Column(name = "description")
+  @Column(name = "description", length = 2000)
   private String description;
 
-  @Column(name = "price", nullable = false)
-  @Min(value = 0)
-  @NotNull(message = "Price of an item cannot be null or <= 0")
-  private Long price;
+  @Column(name = "price", nullable = false, precision = 10, scale = 2)
+  @NotNull(message = "Price of an item cannot be null")
+  @DecimalMin(value = "0.0", message = "Price cannot be negative")
+  private BigDecimal price;
 
   @Column(name = "quantity", nullable = false)
-  @Min(value = 0)
+  @NotNull(message = "Quantity cannot be null")
+  @Min(value = 0, message = "Quantity cannot be negative")
   private Integer qty;
 }
