@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.gryffindor.excalibur.authentication.FirebasePrincipal;
 import com.gryffindor.excalibur.models.db.User;
 import com.gryffindor.excalibur.repository.UserRepository;
 import java.util.NoSuchElementException;
@@ -36,32 +37,40 @@ class MemberIdentityHandlerServiceTest {
     SecurityContextHolder.clearContext();
   }
 
-  @Test
-  void getLoggedInMemberID_returnsId_whenUserExists() {
+  private void withPrincipal(FirebasePrincipal principal) {
     Authentication authentication = mock(Authentication.class);
-    when(authentication.getName()).thenReturn("jdoe");
+    when(authentication.getPrincipal()).thenReturn(principal);
     SecurityContext context = mock(SecurityContext.class);
     when(context.getAuthentication()).thenReturn(authentication);
     SecurityContextHolder.setContext(context);
+  }
+
+  @Test
+  void getLoggedInMemberID_returnsId_whenUserExists() {
+    withPrincipal(new FirebasePrincipal("uid-1", "jdoe@example.com", true));
 
     User user = new User();
     user.setId("u1");
-    when(userRepository.findByUserName("jdoe")).thenReturn(Optional.of(user));
+    when(userRepository.findByFirebaseUid("uid-1")).thenReturn(Optional.of(user));
 
     assertThat(memberIdentityHandlerService.getLoggedInMemberID()).isEqualTo("u1");
   }
 
   @Test
   void getLoggedInMemberID_throws_whenUserMissing() {
-    Authentication authentication = mock(Authentication.class);
-    when(authentication.getName()).thenReturn("ghost");
-    SecurityContext context = mock(SecurityContext.class);
-    when(context.getAuthentication()).thenReturn(authentication);
-    SecurityContextHolder.setContext(context);
+    withPrincipal(new FirebasePrincipal("uid-ghost", "ghost@example.com", true));
 
-    when(userRepository.findByUserName("ghost")).thenReturn(Optional.empty());
+    when(userRepository.findByFirebaseUid("uid-ghost")).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> memberIdentityHandlerService.getLoggedInMemberID())
         .isInstanceOf(NoSuchElementException.class);
+  }
+
+  @Test
+  void getCurrentFirebasePrincipal_returnsPrincipal_fromSecurityContext() {
+    FirebasePrincipal principal = new FirebasePrincipal("uid-1", "jdoe@example.com", true);
+    withPrincipal(principal);
+
+    assertThat(memberIdentityHandlerService.getCurrentFirebasePrincipal()).isEqualTo(principal);
   }
 }

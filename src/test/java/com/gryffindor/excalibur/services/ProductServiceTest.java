@@ -14,6 +14,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -42,7 +43,7 @@ class ProductServiceTest {
     product = new Product();
     product.setId("p1");
     product.setName("Rice");
-    product.setPrice(100L);
+    product.setPrice(new BigDecimal("100.00"));
     product.setQty(10);
     product.setCategory(Product.Category.EDIBLE);
   }
@@ -109,13 +110,13 @@ class ProductServiceTest {
     when(productRepository.findById("p1")).thenReturn(Optional.of(product));
     Product update = new Product();
     update.setName("Wheat");
-    update.setPrice(200L);
+    update.setPrice(new BigDecimal("200.00"));
 
     ResponseEntity<String> response = productService.updateProductById("p1", update);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(product.getName()).isEqualTo("Wheat");
-    assertThat(product.getPrice()).isEqualTo(200L);
+    assertThat(product.getPrice()).isEqualByComparingTo(new BigDecimal("200.00"));
     verify(productRepository).save(product);
   }
 

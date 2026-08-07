@@ -8,11 +8,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.gryffindor.excalibur.constants.Roles;
+import com.gryffindor.excalibur.models.CustomerResponse;
 import com.gryffindor.excalibur.models.RegisterUser;
-import com.gryffindor.excalibur.models.db.User;
 import com.gryffindor.excalibur.services.usersService;
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ class UsersResourceTest {
 
   private MockMvc mockMvc;
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
   @BeforeEach
   void setUp() {
@@ -41,21 +42,23 @@ class UsersResourceTest {
 
   @Test
   void getCustomer_returnsOk() throws Exception {
-    when(usersServiceMock.getCustomer("u1")).thenReturn(ResponseEntity.ok(new User()));
+    when(usersServiceMock.getCustomer("u1")).thenReturn(ResponseEntity.ok(new CustomerResponse()));
 
     mockMvc.perform(get("/customer/{id}", "u1")).andExpect(status().isOk());
   }
 
   @Test
   void getCustomers_returnsOk() throws Exception {
-    when(usersServiceMock.getAllCustomers()).thenReturn(ResponseEntity.ok(List.of(new User())));
+    when(usersServiceMock.getAllCustomers())
+        .thenReturn(ResponseEntity.ok(List.of(new CustomerResponse())));
 
     mockMvc.perform(get("/customers")).andExpect(status().isOk());
   }
 
   @Test
   void registerCustomer_returnsOk() throws Exception {
-    RegisterUser registerUser = new RegisterUser("jdoe", "secret", "John", "Doe", new Date());
+    RegisterUser registerUser =
+        new RegisterUser("John", "Doe", "9998887777", LocalDate.of(1990, 1, 1));
 
     when(usersServiceMock.addUser(any(), eq(Roles.USER)))
         .thenReturn(new ResponseEntity<>("Registered Successfully", HttpStatus.OK));
@@ -70,7 +73,8 @@ class UsersResourceTest {
 
   @Test
   void registerAdmin_returnsOk() throws Exception {
-    RegisterUser registerUser = new RegisterUser("admin1", "secret", "Ad", "Min", new Date());
+    RegisterUser registerUser =
+        new RegisterUser("Ad", "Min", "9998887777", LocalDate.of(1985, 5, 5));
 
     when(usersServiceMock.addUser(any(), eq(Roles.ADMIN)))
         .thenReturn(new ResponseEntity<>("Registered Successfully", HttpStatus.OK));
