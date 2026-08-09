@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 public class RegisterUser {
   @NotBlank(message = "First name cannot be empty")
   private String firstName;
+
   private String lastName;
   private String phoneNumber;
   private LocalDate dob;

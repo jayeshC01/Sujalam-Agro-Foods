@@ -2,7 +2,6 @@ package com.gryffindor.excalibur.model.db;
 
 import com.gryffindor.excalibur.model.common.AuditStamp;
 import com.gryffindor.excalibur.model.constants.OrderStatus;
-
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
