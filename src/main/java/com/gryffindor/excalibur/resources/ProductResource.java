@@ -1,6 +1,6 @@
 package com.gryffindor.excalibur.resources;
 
-import com.gryffindor.excalibur.models.db.Product;
+import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.services.ProductService;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;

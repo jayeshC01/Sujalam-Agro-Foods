@@ -1,8 +1,8 @@
-package com.gryffindor.excalibur.controllers;
+package com.gryffindor.excalibur.resources;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.gryffindor.excalibur.models.ErrorResponse;
+import com.gryffindor.excalibur.model.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.Collections;

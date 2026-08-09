@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gryffindor.excalibur.models.db.Product;
+import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.services.ProductService;
 import java.math.BigDecimal;
 import java.util.List;

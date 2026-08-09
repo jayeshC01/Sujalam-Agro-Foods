@@ -1,4 +1,4 @@
-package com.gryffindor.excalibur.models;
+package com.gryffindor.excalibur.model.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

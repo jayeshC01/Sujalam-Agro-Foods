@@ -1,6 +1,7 @@
-package com.gryffindor.excalibur.models.db;
+package com.gryffindor.excalibur.model.db;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.gryffindor.excalibur.model.common.AuditStamp;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;

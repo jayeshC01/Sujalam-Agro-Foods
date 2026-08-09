@@ -9,10 +9,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.gryffindor.excalibur.constants.Roles;
-import com.gryffindor.excalibur.models.CustomerResponse;
-import com.gryffindor.excalibur.models.RegisterUser;
-import com.gryffindor.excalibur.services.usersService;
+import com.gryffindor.excalibur.model.constants.Roles;
+import com.gryffindor.excalibur.model.request.RegisterUser;
+import com.gryffindor.excalibur.model.response.CustomerResponse;
+import com.gryffindor.excalibur.services.UserService;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,9 +27,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @ExtendWith(MockitoExtension.class)
-class UsersResourceTest {
+class UserResourceTest {
 
-  @Mock private usersService usersServiceMock;
+  @Mock private UserService userServiceMock;
 
   private MockMvc mockMvc;
 
@@ -37,19 +37,19 @@ class UsersResourceTest {
 
   @BeforeEach
   void setUp() {
-    mockMvc = MockMvcBuilders.standaloneSetup(new usersResource(usersServiceMock)).build();
+    mockMvc = MockMvcBuilders.standaloneSetup(new UserResource(userServiceMock)).build();
   }
 
   @Test
   void getCustomer_returnsOk() throws Exception {
-    when(usersServiceMock.getCustomer("u1")).thenReturn(ResponseEntity.ok(new CustomerResponse()));
+    when(userServiceMock.getCustomer("u1")).thenReturn(ResponseEntity.ok(new CustomerResponse()));
 
     mockMvc.perform(get("/customer/{id}", "u1")).andExpect(status().isOk());
   }
 
   @Test
   void getCustomers_returnsOk() throws Exception {
-    when(usersServiceMock.getAllCustomers())
+    when(userServiceMock.getAllCustomers())
         .thenReturn(ResponseEntity.ok(List.of(new CustomerResponse())));
 
     mockMvc.perform(get("/customers")).andExpect(status().isOk());
@@ -60,7 +60,7 @@ class UsersResourceTest {
     RegisterUser registerUser =
         new RegisterUser("John", "Doe", "9998887777", LocalDate.of(1990, 1, 1));
 
-    when(usersServiceMock.addUser(any(), eq(Roles.USER)))
+    when(userServiceMock.addUser(any(), eq(Roles.USER)))
         .thenReturn(new ResponseEntity<>("Registered Successfully", HttpStatus.OK));
 
     mockMvc
@@ -76,7 +76,7 @@ class UsersResourceTest {
     RegisterUser registerUser =
         new RegisterUser("Ad", "Min", "9998887777", LocalDate.of(1985, 5, 5));
 
-    when(usersServiceMock.addUser(any(), eq(Roles.ADMIN)))
+    when(userServiceMock.addUser(any(), eq(Roles.ADMIN)))
         .thenReturn(new ResponseEntity<>("Registered Successfully", HttpStatus.OK));
 
     mockMvc

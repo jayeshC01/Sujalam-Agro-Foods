@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.gryffindor.excalibur.authentication.FirebasePrincipal;
-import com.gryffindor.excalibur.models.db.User;
+import com.gryffindor.excalibur.config.FirebasePrincipal;
+import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.repository.UserRepository;
 import java.util.NoSuchElementException;
 import java.util.Optional;

@@ -1,4 +1,4 @@
-package com.gryffindor.excalibur.models.db;
+package com.gryffindor.excalibur.model.db;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;

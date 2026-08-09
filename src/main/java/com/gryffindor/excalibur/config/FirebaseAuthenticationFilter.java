@@ -1,10 +1,9 @@
-package com.gryffindor.excalibur.filters;
+package com.gryffindor.excalibur.config;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
-import com.gryffindor.excalibur.authentication.FirebasePrincipal;
-import com.gryffindor.excalibur.models.db.User;
+import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

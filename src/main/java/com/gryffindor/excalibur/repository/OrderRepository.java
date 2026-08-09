@@ -1,6 +1,6 @@
 package com.gryffindor.excalibur.repository;
 
-import com.gryffindor.excalibur.models.db.Order;
+import com.gryffindor.excalibur.model.db.Order;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
