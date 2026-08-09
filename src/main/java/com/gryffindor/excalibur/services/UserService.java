@@ -1,10 +1,10 @@
 package com.gryffindor.excalibur.services;
 
-import com.gryffindor.excalibur.authentication.FirebasePrincipal;
-import com.gryffindor.excalibur.constants.Roles;
-import com.gryffindor.excalibur.models.CustomerResponse;
-import com.gryffindor.excalibur.models.RegisterUser;
-import com.gryffindor.excalibur.models.db.User;
+import com.gryffindor.excalibur.config.FirebasePrincipal;
+import com.gryffindor.excalibur.model.constants.Roles;
+import com.gryffindor.excalibur.model.db.User;
+import com.gryffindor.excalibur.model.request.RegisterUser;
+import com.gryffindor.excalibur.model.response.CustomerResponse;
 import com.gryffindor.excalibur.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
@@ -20,13 +20,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class usersService {
+public class UserService {
   private final UserRepository userRepository;
   private final MemberIdentityHandlerService memberIdentityHandlerService;
   private final Validator validator;
 
   @Autowired
-  usersService(
+  UserService(
       UserRepository userRepository,
       MemberIdentityHandlerService memberIdentityHandlerService,
       Validator validator) {

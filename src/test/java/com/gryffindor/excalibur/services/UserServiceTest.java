@@ -9,11 +9,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.gryffindor.excalibur.authentication.FirebasePrincipal;
-import com.gryffindor.excalibur.constants.Roles;
-import com.gryffindor.excalibur.models.CustomerResponse;
-import com.gryffindor.excalibur.models.RegisterUser;
-import com.gryffindor.excalibur.models.db.User;
+import com.gryffindor.excalibur.config.FirebasePrincipal;
+import com.gryffindor.excalibur.model.constants.Roles;
+import com.gryffindor.excalibur.model.db.User;
+import com.gryffindor.excalibur.model.request.RegisterUser;
+import com.gryffindor.excalibur.model.response.CustomerResponse;
 import com.gryffindor.excalibur.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
@@ -33,7 +33,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
-class UsersServiceTest {
+class UserServiceTest {
 
   @Mock private UserRepository userRepository;
 
@@ -41,7 +41,7 @@ class UsersServiceTest {
 
   @Mock private Validator validator;
 
-  private usersService service;
+  private UserService service;
 
   private RegisterUser registerUser;
 
@@ -50,7 +50,7 @@ class UsersServiceTest {
 
   @BeforeEach
   void setUp() {
-    service = new usersService(userRepository, memberIdentityHandlerService, validator);
+    service = new UserService(userRepository, memberIdentityHandlerService, validator);
     registerUser = new RegisterUser("John", "Doe", "9998887777", LocalDate.of(1990, 1, 1));
   }
 

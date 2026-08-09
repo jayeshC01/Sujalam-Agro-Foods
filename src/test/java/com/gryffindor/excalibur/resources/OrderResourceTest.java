@@ -7,9 +7,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gryffindor.excalibur.models.OrderRequest;
-import com.gryffindor.excalibur.models.db.Address;
-import com.gryffindor.excalibur.models.db.Order;
+import com.gryffindor.excalibur.model.db.Address;
+import com.gryffindor.excalibur.model.db.Order;
+import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.services.OrderService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

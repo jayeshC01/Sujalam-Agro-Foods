@@ -1,7 +1,7 @@
 package com.gryffindor.excalibur.resources;
 
-import com.gryffindor.excalibur.models.OrderRequest;
-import com.gryffindor.excalibur.models.db.Order;
+import com.gryffindor.excalibur.model.db.Order;
+import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.services.OrderService;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;

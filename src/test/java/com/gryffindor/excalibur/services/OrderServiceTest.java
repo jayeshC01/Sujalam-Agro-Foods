@@ -5,12 +5,12 @@ import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.gryffindor.excalibur.constants.OrderStatus;
-import com.gryffindor.excalibur.models.OrderRequest;
-import com.gryffindor.excalibur.models.db.Address;
-import com.gryffindor.excalibur.models.db.Order;
-import com.gryffindor.excalibur.models.db.Product;
-import com.gryffindor.excalibur.models.db.User;
+import com.gryffindor.excalibur.model.constants.OrderStatus;
+import com.gryffindor.excalibur.model.db.Address;
+import com.gryffindor.excalibur.model.db.Order;
+import com.gryffindor.excalibur.model.db.Product;
+import com.gryffindor.excalibur.model.db.User;
+import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.repository.OrderRepository;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import java.math.BigDecimal;

@@ -8,7 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.gryffindor.excalibur.models.db.Product;
+import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;

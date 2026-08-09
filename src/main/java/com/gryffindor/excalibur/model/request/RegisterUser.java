@@ -1,4 +1,4 @@
-package com.gryffindor.excalibur.models;
+package com.gryffindor.excalibur.model.request;
 
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
@@ -14,7 +14,6 @@ import lombok.NoArgsConstructor;
 public class RegisterUser {
   @NotBlank(message = "First name cannot be empty")
   private String firstName;
-
   private String lastName;
   private String phoneNumber;
   private LocalDate dob;

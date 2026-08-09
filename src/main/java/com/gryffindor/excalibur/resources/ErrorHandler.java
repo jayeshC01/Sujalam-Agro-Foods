@@ -1,6 +1,6 @@
-package com.gryffindor.excalibur.controllers;
+package com.gryffindor.excalibur.resources;
 
-import com.gryffindor.excalibur.models.ErrorResponse;
+import com.gryffindor.excalibur.model.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;

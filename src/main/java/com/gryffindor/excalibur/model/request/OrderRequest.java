@@ -1,6 +1,6 @@
-package com.gryffindor.excalibur.models;
+package com.gryffindor.excalibur.model.request;
 
-import com.gryffindor.excalibur.models.db.Address;
+import com.gryffindor.excalibur.model.db.Address;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;

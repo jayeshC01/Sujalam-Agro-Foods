@@ -1,4 +1,4 @@
-package com.gryffindor.excalibur.authentication;
+package com.gryffindor.excalibur.config;
 
 import java.security.Principal;
 

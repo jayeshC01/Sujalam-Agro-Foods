@@ -1,6 +1,7 @@
-package com.gryffindor.excalibur.models.db;
+package com.gryffindor.excalibur.model.db;
 
-import com.gryffindor.excalibur.constants.Roles;
+import com.gryffindor.excalibur.model.common.AuditStamp;
+import com.gryffindor.excalibur.model.constants.Roles;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

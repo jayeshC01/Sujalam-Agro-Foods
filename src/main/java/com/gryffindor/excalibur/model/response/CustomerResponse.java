@@ -1,7 +1,7 @@
-package com.gryffindor.excalibur.models;
+package com.gryffindor.excalibur.model.response;
 
-import com.gryffindor.excalibur.constants.Roles;
-import com.gryffindor.excalibur.models.db.User;
+import com.gryffindor.excalibur.model.constants.Roles;
+import com.gryffindor.excalibur.model.db.User;
 import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -14,7 +14,6 @@ public class CustomerResponse {
   private String id;
   private String firstName;
   private String lastName;
-  private LocalDate dateOfBirth;
   private Roles role;
 
   public static CustomerResponse from(User user) {
@@ -22,7 +21,6 @@ public class CustomerResponse {
         user.getId(),
         user.getFirstName(),
         user.getLastName(),
-        user.getDateOfBirth(),
         user.getRole());
   }
 }

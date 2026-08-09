@@ -1,4 +1,4 @@
-package com.gryffindor.excalibur.models.db;
+package com.gryffindor.excalibur.model.common;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;

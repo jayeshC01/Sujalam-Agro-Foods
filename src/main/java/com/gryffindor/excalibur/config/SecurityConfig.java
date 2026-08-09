@@ -1,7 +1,6 @@
 package com.gryffindor.excalibur.config;
 
-import com.gryffindor.excalibur.constants.Roles;
-import com.gryffindor.excalibur.filters.FirebaseAuthenticationFilter;
+import com.gryffindor.excalibur.model.constants.Roles;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
