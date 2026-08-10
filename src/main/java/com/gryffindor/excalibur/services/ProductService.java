@@ -64,6 +64,8 @@ public class ProductService {
 
     existingProduct.setName(product.getName());
     existingProduct.setPrice(product.getPrice());
+    existingProduct.setImageUrl(product.getImageUrl());
+    existingProduct.setHealthBenefits(product.getHealthBenefits());
     productRepository.save(existingProduct);
 
     return new ResponseEntity<>("Product updated successfully", HttpStatus.OK);

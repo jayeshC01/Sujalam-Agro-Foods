@@ -50,7 +50,6 @@ public class UserService {
     user.setFirstName(request.getFirstName());
     user.setLastName(request.getLastName());
     user.setPhoneNumber(request.getPhoneNumber());
-    user.setDateOfBirth(request.getDob());
     user.setRole(role);
 
     Set<ConstraintViolation<User>> violations = validator.validate(user);

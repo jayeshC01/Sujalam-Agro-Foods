@@ -5,7 +5,6 @@ import com.gryffindor.excalibur.model.constants.Roles;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDate;
 import lombok.*;
 
 @Entity
@@ -37,9 +36,6 @@ public class User extends AuditStamp {
 
   @Column(name = "phone_number", unique = true)
   private String phoneNumber;
-
-  @Column(name = "date_of_birth")
-  private LocalDate dateOfBirth;
 
   @Column(name = "role", nullable = false)
   @Enumerated(EnumType.STRING)

@@ -13,7 +13,6 @@ import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.request.RegisterUser;
 import com.gryffindor.excalibur.model.response.CustomerResponse;
 import com.gryffindor.excalibur.services.UserService;
-import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,8 +56,7 @@ class UserResourceTest {
 
   @Test
   void registerCustomer_returnsOk() throws Exception {
-    RegisterUser registerUser =
-        new RegisterUser("John", "Doe", "9998887777", LocalDate.of(1990, 1, 1));
+    RegisterUser registerUser = new RegisterUser("John", "Doe", "9998887777");
 
     when(userServiceMock.addUser(any(), eq(Roles.USER)))
         .thenReturn(new ResponseEntity<>("Registered Successfully", HttpStatus.OK));
@@ -73,8 +71,7 @@ class UserResourceTest {
 
   @Test
   void registerAdmin_returnsOk() throws Exception {
-    RegisterUser registerUser =
-        new RegisterUser("Ad", "Min", "9998887777", LocalDate.of(1985, 5, 5));
+    RegisterUser registerUser = new RegisterUser("Ad", "Min", "9998887777");
 
     when(userServiceMock.addUser(any(), eq(Roles.ADMIN)))
         .thenReturn(new ResponseEntity<>("Registered Successfully", HttpStatus.OK));

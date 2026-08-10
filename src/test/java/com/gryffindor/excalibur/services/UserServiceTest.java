@@ -19,7 +19,6 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -51,7 +50,7 @@ class UserServiceTest {
   @BeforeEach
   void setUp() {
     service = new UserService(userRepository, memberIdentityHandlerService, validator);
-    registerUser = new RegisterUser("John", "Doe", "9998887777", LocalDate.of(1990, 1, 1));
+    registerUser = new RegisterUser("John", "Doe", "9998887777");
   }
 
   @Test
