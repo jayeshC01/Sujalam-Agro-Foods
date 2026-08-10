@@ -33,14 +33,14 @@ public class Product extends AuditStamp implements Serializable {
   private Category category;
 
   @Column(name = "name", nullable = false, unique = true)
-  @NotBlank(message = "Name cannot be null. Provide a name field")
+  @NotBlank(message = "Name cannot be empty")
   private String name;
 
   @Column(name = "description", length = 2000)
   private String description;
 
   @Column(name = "image_url", nullable = false, length = 500)
-  @NotBlank(message = "Image URL cannot be null. Provide an image URL")
+  @NotBlank(message = "Image URL cannot be empty")
   private String imageUrl;
 
   @Column(name = "health_benefits", length = 2000)

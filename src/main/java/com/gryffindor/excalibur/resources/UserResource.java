@@ -4,6 +4,7 @@ import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.request.RegisterUser;
 import com.gryffindor.excalibur.model.response.CustomerResponse;
 import com.gryffindor.excalibur.services.UserService;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -31,12 +32,12 @@ public class UserResource {
   }
 
   @PostMapping("/customer/register")
-  public ResponseEntity<String> registerCustomer(@RequestBody RegisterUser user) {
+  public ResponseEntity<String> registerCustomer(@Valid @RequestBody RegisterUser user) {
     return userService.addUser(user, Roles.USER);
   }
 
   @PostMapping("/admin/register")
-  public ResponseEntity<String> registerAdmin(@RequestBody RegisterUser user) {
+  public ResponseEntity<String> registerAdmin(@Valid @RequestBody RegisterUser user) {
     return userService.addUser(user, Roles.ADMIN);
   }
 }

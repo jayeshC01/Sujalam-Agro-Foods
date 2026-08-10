@@ -2,6 +2,7 @@ package com.gryffindor.excalibur.resources;
 
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.services.ProductService;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +28,7 @@ public class ProductResource {
   }
 
   @PostMapping("/admin/product")
-  public ResponseEntity<String> addProduct(@RequestBody Product product) {
+  public ResponseEntity<String> addProduct(@Valid @RequestBody Product product) {
     return productService.addProduct(product);
   }
 
