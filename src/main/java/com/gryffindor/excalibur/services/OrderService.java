@@ -1,6 +1,7 @@
 package com.gryffindor.excalibur.services;
 
 import com.gryffindor.excalibur.model.constants.OrderStatus;
+import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.Order;
 import com.gryffindor.excalibur.model.db.OrderDetails;
 import com.gryffindor.excalibur.model.db.Product;
@@ -15,6 +16,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,15 +49,18 @@ public class OrderService {
   }
 
   public ResponseEntity<Order> getOrderById(String id) {
-    try {
-      Order order = orderRepository.findById(id).orElse(null);
-      if (order == null) {
-        return ResponseEntity.notFound().build();
-      }
-      return ResponseEntity.ok(order);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+    Order order =
+        orderRepository
+            .findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("Order with id " + id + " not found"));
+
+    User currentUser = memberIdentityHandlerService.getLoggedInUser();
+    if (currentUser.getRole() != Roles.ADMIN
+        && !order.getUser().getId().equals(currentUser.getId())) {
+      throw new AccessDeniedException("You are not allowed to view this order");
     }
+
+    return ResponseEntity.ok(order);
   }
 
   @Transactional

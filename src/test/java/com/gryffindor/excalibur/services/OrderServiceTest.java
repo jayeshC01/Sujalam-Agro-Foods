@@ -1,11 +1,13 @@
 package com.gryffindor.excalibur.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.gryffindor.excalibur.model.constants.OrderStatus;
+import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.Address;
 import com.gryffindor.excalibur.model.db.Order;
 import com.gryffindor.excalibur.model.db.Product;
@@ -13,6 +15,7 @@ import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.repository.OrderRepository;
 import com.gryffindor.excalibur.repository.ProductRepository;
+import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +26,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -74,9 +78,14 @@ class OrderServiceTest {
   }
 
   @Test
-  void getOrderById_returnsOrder_whenFound() {
+  void getOrderById_returnsOrder_whenRequestedByOwner() {
+    User owner = new User();
+    owner.setId("u1");
+    owner.setRole(Roles.USER);
     Order order = new Order();
+    order.setUser(owner);
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(owner);
 
     ResponseEntity<Order> response = orderService.getOrderById("o1");
 
@@ -85,12 +94,49 @@ class OrderServiceTest {
   }
 
   @Test
-  void getOrderById_returnsNotFound_whenMissing() {
+  void getOrderById_returnsOrder_whenRequestedByAdmin() {
+    User owner = new User();
+    owner.setId("u1");
+    owner.setRole(Roles.USER);
+    Order order = new Order();
+    order.setUser(owner);
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+
+    User admin = new User();
+    admin.setId("admin1");
+    admin.setRole(Roles.ADMIN);
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(admin);
+
+    ResponseEntity<Order> response = orderService.getOrderById("o1");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isEqualTo(order);
+  }
+
+  @Test
+  void getOrderById_throwsAccessDenied_whenRequestedByAnotherCustomer() {
+    User owner = new User();
+    owner.setId("u1");
+    owner.setRole(Roles.USER);
+    Order order = new Order();
+    order.setUser(owner);
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+
+    User requester = new User();
+    requester.setId("u2");
+    requester.setRole(Roles.USER);
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(requester);
+
+    assertThatThrownBy(() -> orderService.getOrderById("o1"))
+        .isInstanceOf(AccessDeniedException.class);
+  }
+
+  @Test
+  void getOrderById_throws_whenMissing() {
     when(orderRepository.findById("missing")).thenReturn(Optional.empty());
 
-    ResponseEntity<Order> response = orderService.getOrderById("missing");
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThatThrownBy(() -> orderService.getOrderById("missing"))
+        .isInstanceOf(EntityNotFoundException.class);
   }
 
   @Test

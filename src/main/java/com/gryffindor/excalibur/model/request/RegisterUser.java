@@ -1,7 +1,6 @@
 package com.gryffindor.excalibur.model.request;
 
 import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,5 +16,4 @@ public class RegisterUser {
 
   private String lastName;
   private String phoneNumber;
-  private LocalDate dob;
 }

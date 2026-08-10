@@ -39,6 +39,13 @@ public class Product extends AuditStamp implements Serializable {
   @Column(name = "description", length = 2000)
   private String description;
 
+  @Column(name = "image_url", nullable = false, length = 500)
+  @NotBlank(message = "Image URL cannot be null. Provide an image URL")
+  private String imageUrl;
+
+  @Column(name = "health_benefits", length = 2000)
+  private String healthBenefits;
+
   @Column(name = "price", nullable = false, precision = 10, scale = 2)
   @NotNull(message = "Price of an item cannot be null")
   @DecimalMin(value = "0.0", message = "Price cannot be negative")
