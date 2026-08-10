@@ -1,6 +1,7 @@
 package com.gryffindor.excalibur.resources;
 
-import com.gryffindor.excalibur.model.db.Product;
+import com.gryffindor.excalibur.model.request.ProductRequest;
+import com.gryffindor.excalibur.model.response.ProductResponse;
 import com.gryffindor.excalibur.services.ProductService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -18,18 +19,24 @@ public class ProductResource {
   }
 
   @GetMapping("/product/{id}")
-  public ResponseEntity<Product> getProductById(@PathVariable String id) {
+  public ResponseEntity<ProductResponse> getProductById(@PathVariable String id) {
     return productService.findById(id);
   }
 
   @GetMapping("/products")
-  public ResponseEntity<List<Product>> getAllProducts() {
+  public ResponseEntity<List<ProductResponse>> getAllProducts() {
     return productService.findAllProduct();
   }
 
   @PostMapping("/admin/product")
-  public ResponseEntity<String> addProduct(@Valid @RequestBody Product product) {
-    return productService.addProduct(product);
+  public ResponseEntity<String> addProduct(@Valid @RequestBody ProductRequest productRequest) {
+    return productService.addProduct(productRequest);
+  }
+
+  @PutMapping("/admin/product/{id}")
+  public ResponseEntity<String> updateProductById(
+      @PathVariable String id, @Valid @RequestBody ProductRequest productRequest) {
+    return productService.updateProductById(id, productRequest);
   }
 
   @DeleteMapping("/admin/product/{id}")
