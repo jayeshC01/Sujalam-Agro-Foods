@@ -3,6 +3,7 @@ package com.gryffindor.excalibur.resources;
 import com.gryffindor.excalibur.model.db.Order;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.services.OrderService;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -35,7 +36,7 @@ public class OrderResource {
   }
 
   @PostMapping("/orders")
-  public ResponseEntity<String> createOrder(@RequestBody OrderRequest order) {
+  public ResponseEntity<String> createOrder(@Valid @RequestBody OrderRequest order) {
     return orderService.addOrder(order);
   }
 }

@@ -16,6 +16,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class OrderRequest {
   @NotEmpty(message = "Order must contain at least one product")
+  @Valid
   private List<ProductRequest> product;
 
   @NotNull(message = "Shipping address is required")
@@ -27,7 +28,7 @@ public class OrderRequest {
     @NotBlank(message = "Product id cannot be empty")
     private String productId;
 
-    @Min(value = 1, message = "Quantity must be at least 1")
+    @Min(value = 1, message = "Quantity ordered must be at least 1")
     private int quantity;
   }
 }
