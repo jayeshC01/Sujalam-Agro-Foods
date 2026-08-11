@@ -1,5 +1,6 @@
 package com.gryffindor.excalibur.resources;
 
+import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
@@ -65,6 +66,17 @@ public class ErrorHandler {
     ErrorResponse errorResponse = new ErrorResponse();
     errorResponse.setCode(HttpStatus.CONFLICT);
     errorResponse.setMessage("A record with the same unique value already exists.");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+  }
+
+  @ExceptionHandler(InsufficientStockException.class)
+  public ResponseEntity<ErrorResponse> handleInsufficientStockException(
+      InsufficientStockException exception) {
+    ErrorResponse errorResponse = new ErrorResponse();
+    errorResponse.setCode(HttpStatus.CONFLICT);
+    errorResponse.setMessage("This item just went out of stock. Please try again.");
+    errorResponse.setDetails(exception.getMessage());
 
     return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
   }

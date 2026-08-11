@@ -1,6 +1,5 @@
 package com.gryffindor.excalibur.model.db;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gryffindor.excalibur.model.common.AuditStamp;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
@@ -28,17 +27,16 @@ public class OrderDetails extends AuditStamp {
   @JoinColumn(name = "order_id", referencedColumnName = "id", nullable = false)
   @ToString.Exclude
   @EqualsAndHashCode.Exclude
-  @JsonIgnore
   private Order order;
 
   @ManyToOne
   @JoinColumn(name = "product_id", referencedColumnName = "id", nullable = false)
   private Product product;
 
-  @Column(name = "quantity", nullable = false)
-  @NotNull(message = "Quantity cannot be null")
-  @Min(value = 1, message = "Quantity must be at least 1")
-  private Integer quantity;
+  @Column(name = "ordered_qty", nullable = false)
+  @NotNull(message = "Ordered quantity cannot be null")
+  @Min(value = 1, message = "Ordered quantity must be at least 1")
+  private Integer orderedQty;
 
   @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
   @NotNull(message = "Unit price cannot be null")

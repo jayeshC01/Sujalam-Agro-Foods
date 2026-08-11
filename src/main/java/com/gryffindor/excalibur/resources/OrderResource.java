@@ -1,7 +1,7 @@
 package com.gryffindor.excalibur.resources;
 
-import com.gryffindor.excalibur.model.db.Order;
 import com.gryffindor.excalibur.model.request.OrderRequest;
+import com.gryffindor.excalibur.model.response.OrderResponse;
 import com.gryffindor.excalibur.services.OrderService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -20,23 +20,23 @@ public class OrderResource {
   }
 
   @GetMapping("/order/{id}")
-  public ResponseEntity<Order> getOrder(@PathVariable String id) {
+  public ResponseEntity<OrderResponse> getOrder(@PathVariable String id) {
     return orderService.getOrderById(id);
   }
 
   @GetMapping("/orders")
   @PreAuthorize("hasRole('ADMIN')")
-  public ResponseEntity<List<Order>> getOrders() {
+  public ResponseEntity<List<OrderResponse>> getOrders() {
     return orderService.getAllOrders();
   }
 
   @GetMapping("/customer/orders")
-  public ResponseEntity<List<Order>> getCustomerOrders() {
+  public ResponseEntity<List<OrderResponse>> getCustomerOrders() {
     return orderService.getOrdersForCustomer();
   }
 
   @PostMapping("/orders")
-  public ResponseEntity<String> createOrder(@Valid @RequestBody OrderRequest order) {
+  public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody OrderRequest order) {
     return orderService.addOrder(order);
   }
 }

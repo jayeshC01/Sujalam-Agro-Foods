@@ -3,6 +3,7 @@ package com.gryffindor.excalibur.resources;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
@@ -41,6 +42,21 @@ class ErrorHandlerTest {
     assertThat(response.getBody().getMessage())
         .isEqualTo("Data Constraint validation failed. Please provide correct details");
     assertThat(response.getBody().getDetails()).isNotNull();
+  }
+
+  @Test
+  void handleInsufficientStockException_returnsConflictWithFrontendFriendlyMessage() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleInsufficientStockException(
+            new InsufficientStockException(
+                "Insufficient stock for product 'Almonds'. Available: 1, requested: 2"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage())
+        .isEqualTo("This item just went out of stock. Please try again.");
+    assertThat(response.getBody().getDetails())
+        .isEqualTo("Insufficient stock for product 'Almonds'. Available: 1, requested: 2");
   }
 
   @Test

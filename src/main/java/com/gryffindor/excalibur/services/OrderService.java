@@ -6,7 +6,9 @@ import com.gryffindor.excalibur.model.db.Order;
 import com.gryffindor.excalibur.model.db.OrderDetails;
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.db.User;
+import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.request.OrderRequest;
+import com.gryffindor.excalibur.model.response.OrderResponse;
 import com.gryffindor.excalibur.repository.OrderRepository;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -14,7 +16,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -36,19 +37,15 @@ public class OrderService {
     this.memberIdentityHandlerService = memberIdentityHandlerService;
   }
 
-  public ResponseEntity<List<Order>> getAllOrders() {
-    try {
-      List<Order> orders = orderRepository.findAll();
-      if (orders.isEmpty()) {
-        return ResponseEntity.noContent().build();
-      }
-      return ResponseEntity.ok(orders);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+  public ResponseEntity<List<OrderResponse>> getAllOrders() {
+    List<Order> orders = orderRepository.findAll();
+    if (orders.isEmpty()) {
+      return ResponseEntity.noContent().build();
     }
+    return ResponseEntity.ok(orders.stream().map(OrderResponse::from).toList());
   }
 
-  public ResponseEntity<Order> getOrderById(String id) {
+  public ResponseEntity<OrderResponse> getOrderById(String id) {
     Order order =
         orderRepository
             .findById(id)
@@ -60,11 +57,11 @@ public class OrderService {
       throw new AccessDeniedException("You are not allowed to view this order");
     }
 
-    return ResponseEntity.ok(order);
+    return ResponseEntity.ok(OrderResponse.from(order));
   }
 
   @Transactional
-  public ResponseEntity<String> addOrder(OrderRequest orderRequest) {
+  public ResponseEntity<OrderResponse> addOrder(OrderRequest orderRequest) {
     User user = memberIdentityHandlerService.getLoggedInUser();
 
     Order order = new Order();
@@ -82,13 +79,24 @@ public class OrderService {
                   () ->
                       new EntityNotFoundException("Product " + item.getProductId() + " not found"));
 
-      BigDecimal quantity = BigDecimal.valueOf(item.getQuantity());
+      int updatedRows = productRepository.decrementStock(item.getProductId(), item.getOrderedQty());
+      if (updatedRows == 0) {
+        throw new InsufficientStockException(
+            "Insufficient stock for product '"
+                + product.getName()
+                + "'. Available: "
+                + product.getQty()
+                + ", requested: "
+                + item.getOrderedQty());
+      }
+
+      BigDecimal quantity = BigDecimal.valueOf(item.getOrderedQty());
       BigDecimal subTotal = product.getPrice().multiply(quantity);
 
       OrderDetails orderDetail = new OrderDetails();
       orderDetail.setOrder(order);
       orderDetail.setProduct(product);
-      orderDetail.setQuantity(item.getQuantity());
+      orderDetail.setOrderedQty(item.getOrderedQty());
       orderDetail.setUnitPrice(product.getPrice());
       orderDetail.setSubTotal(subTotal);
       orderDetails.add(orderDetail);
@@ -99,20 +107,16 @@ public class OrderService {
     order.setOrderDetails(orderDetails);
     order.setOrderTotal(orderTotal);
 
-    orderRepository.save(order);
-    return new ResponseEntity<>("Order Placed Successfully", HttpStatus.OK);
+    Order savedOrder = orderRepository.save(order);
+    return ResponseEntity.ok(OrderResponse.from(savedOrder));
   }
 
-  public ResponseEntity<List<Order>> getOrdersForCustomer() {
-    try {
-      List<Order> orders =
-          orderRepository.getOrderByUserId(memberIdentityHandlerService.getLoggedInMemberID());
-      if (orders.isEmpty()) {
-        return ResponseEntity.noContent().build();
-      }
-      return ResponseEntity.ok(orders);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+  public ResponseEntity<List<OrderResponse>> getOrdersForCustomer() {
+    List<Order> orders =
+        orderRepository.getOrderByUserId(memberIdentityHandlerService.getLoggedInMemberID());
+    if (orders.isEmpty()) {
+      return ResponseEntity.noContent().build();
     }
+    return ResponseEntity.ok(orders.stream().map(OrderResponse::from).toList());
   }
 }

@@ -12,8 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gryffindor.excalibur.model.db.Address;
-import com.gryffindor.excalibur.model.db.Order;
 import com.gryffindor.excalibur.model.request.OrderRequest;
+import com.gryffindor.excalibur.model.response.OrderResponse;
 import com.gryffindor.excalibur.services.OrderService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
@@ -46,7 +45,7 @@ class OrderResourceTest {
   private OrderRequest.ProductRequest validItem() {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
-    item.setQuantity(2);
+    item.setOrderedQty(2);
     return item;
   }
 
@@ -62,10 +61,14 @@ class OrderResourceTest {
     return address;
   }
 
+  private OrderResponse sampleOrderResponse() {
+    return OrderResponse.builder().id("o1").build();
+  }
+
   @Test
   @DisplayName("Get order by id returns ok")
   void getOrder_returnsOk() throws Exception {
-    when(orderService.getOrderById("o1")).thenReturn(ResponseEntity.ok(new Order()));
+    when(orderService.getOrderById("o1")).thenReturn(ResponseEntity.ok(sampleOrderResponse()));
 
     mockMvc.perform(get("/order/{id}", "o1")).andExpect(status().isOk());
   }
@@ -73,7 +76,7 @@ class OrderResourceTest {
   @Test
   @DisplayName("Get all orders returns ok")
   void getOrders_returnsOk() throws Exception {
-    when(orderService.getAllOrders()).thenReturn(ResponseEntity.ok(List.of(new Order())));
+    when(orderService.getAllOrders()).thenReturn(ResponseEntity.ok(List.of(sampleOrderResponse())));
 
     mockMvc.perform(get("/orders")).andExpect(status().isOk());
   }
@@ -81,7 +84,8 @@ class OrderResourceTest {
   @Test
   @DisplayName("Get orders for the logged in customer returns ok")
   void getCustomerOrders_returnsOk() throws Exception {
-    when(orderService.getOrdersForCustomer()).thenReturn(ResponseEntity.ok(List.of(new Order())));
+    when(orderService.getOrdersForCustomer())
+        .thenReturn(ResponseEntity.ok(List.of(sampleOrderResponse())));
 
     mockMvc.perform(get("/customer/orders")).andExpect(status().isOk());
   }
@@ -91,8 +95,7 @@ class OrderResourceTest {
   void createOrder_returnsOk() throws Exception {
     OrderRequest orderRequest = new OrderRequest(List.of(validItem()), validAddress());
 
-    when(orderService.addOrder(any()))
-        .thenReturn(new ResponseEntity<>("Order Placed Successfully", HttpStatus.OK));
+    when(orderService.addOrder(any())).thenReturn(ResponseEntity.ok(sampleOrderResponse()));
 
     mockMvc
         .perform(
@@ -142,7 +145,7 @@ class OrderResourceTest {
   @DisplayName("Request with non-positive quantity is rejected")
   void nonPositiveQuantity_isRejected() throws Exception {
     OrderRequest.ProductRequest item = validItem();
-    item.setQuantity(0);
+    item.setOrderedQty(0);
     OrderRequest orderRequest = new OrderRequest(List.of(item), validAddress());
 
     mockMvc
