@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.request.ProductRequest;
+import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.model.response.ProductResponse;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -23,6 +24,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -84,8 +88,8 @@ class ProductServiceTest {
   // ---------- findAllProduct ----------
 
   @Test
-  @DisplayName("findAllProduct maps every product in the repository order")
-  void findAllProduct_returnsAllMappedProducts_whenNotEmpty() {
+  @DisplayName("findAllProduct returns a paged response with metadata")
+  void findAllProduct_returnsPagedResponse_whenNotEmpty() {
     Product second = new Product();
     second.setId("p2");
     second.setCategory(Product.Category.NOT_EDIBLE);
@@ -93,29 +97,34 @@ class ProductServiceTest {
     second.setPrice(new BigDecimal("25.00"));
     second.setQty(50);
 
-    when(productRepository.findAll()).thenReturn(List.of(product, second));
+    Page<Product> page = new PageImpl<>(List.of(product, second), PageRequest.of(0, 10), 2);
+    when(productRepository.findAll(PageRequest.of(0, 10))).thenReturn(page);
 
-    ResponseEntity<List<ProductResponse>> response = productService.findAllProduct();
+    ResponseEntity<PageResponse<ProductResponse>> response = productService.findAllProduct(0, 10);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    List<ProductResponse> body = response.getBody();
-    assertThat(body).hasSize(2);
-    assertThat(body.get(0).getId()).isEqualTo("p1");
-    assertThat(body.get(0).getName()).isEqualTo("Rice");
-    assertThat(body.get(1).getId()).isEqualTo("p2");
-    assertThat(body.get(1).getName()).isEqualTo("Soap");
-    assertThat(body.get(1).getCategory()).isEqualTo(Product.Category.NOT_EDIBLE);
+    PageResponse<ProductResponse> body = response.getBody();
+    assertThat(body).isNotNull();
+    assertThat(body.getContent()).hasSize(2);
+    assertThat(body.getPage()).isEqualTo(0);
+    assertThat(body.getSize()).isEqualTo(10);
+    assertThat(body.getTotalElements()).isEqualTo(2);
+    assertThat(body.getTotalPages()).isEqualTo(1);
+    assertThat(body.getFirst()).isTrue();
+    assertThat(body.getLast()).isTrue();
   }
 
   @Test
-  @DisplayName("findAllProduct returns 200 with an empty list when the catalog is empty")
-  void findAllProduct_returnsEmptyList_whenEmpty() {
-    when(productRepository.findAll()).thenReturn(List.of());
+  @DisplayName("findAllProduct returns an empty page when the catalog is empty")
+  void findAllProduct_returnsEmptyPage_whenEmpty() {
+    Page<Product> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
+    when(productRepository.findAll(PageRequest.of(0, 10))).thenReturn(page);
 
-    ResponseEntity<List<ProductResponse>> response = productService.findAllProduct();
+    ResponseEntity<PageResponse<ProductResponse>> response = productService.findAllProduct(0, 10);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).isEmpty();
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getContent()).isEmpty();
   }
 
   // ---------- addProduct ----------

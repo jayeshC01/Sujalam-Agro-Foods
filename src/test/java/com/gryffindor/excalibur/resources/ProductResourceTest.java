@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.request.ProductRequest;
+import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.model.response.ProductResponse;
 import com.gryffindor.excalibur.services.ProductService;
 import java.math.BigDecimal;
@@ -65,12 +66,26 @@ class ProductResourceTest {
   }
 
   @Test
-  @DisplayName("Get all products returns ok")
-  void getAllProducts_returnsOk() throws Exception {
-    when(productService.findAllProduct())
-        .thenReturn(ResponseEntity.ok(List.of(new ProductResponse())));
+  @DisplayName("Get all products returns ok with pagination metadata")
+  void getAllProducts_returnsOkWithPaginationMetadata() throws Exception {
+    PageResponse<ProductResponse> pageResponse =
+        PageResponse.<ProductResponse>builder()
+            .content(List.of(new ProductResponse()))
+            .page(0)
+            .size(10)
+            .totalElements(1)
+            .totalPages(1)
+            .first(true)
+            .last(true)
+            .build();
 
-    mockMvc.perform(get("/products")).andExpect(status().isOk());
+    when(productService.findAllProduct(0, 10)).thenReturn(ResponseEntity.ok(pageResponse));
+
+    mockMvc.perform(get("/products").param("page", "0").param("size", "10"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0]").exists())
+        .andExpect(jsonPath("$.page").value(0))
+        .andExpect(jsonPath("$.size").value(10));
   }
 
   @Test

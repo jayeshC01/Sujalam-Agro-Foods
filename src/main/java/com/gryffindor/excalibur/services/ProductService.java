@@ -2,6 +2,7 @@ package com.gryffindor.excalibur.services;
 
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.request.ProductRequest;
+import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.model.response.ProductResponse;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -9,6 +10,8 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -31,10 +34,23 @@ public class ProductService {
     return ResponseEntity.ok(ProductResponse.from(product));
   }
 
-  public ResponseEntity<List<ProductResponse>> findAllProduct() {
-    List<Product> products = productRepository.findAll();
-    List<ProductResponse> response = products.stream().map(ProductResponse::from).toList();
-    return ResponseEntity.ok(response);
+  public ResponseEntity<PageResponse<ProductResponse>> findAllProduct(int page, int size) {
+    PageRequest pageRequest = PageRequest.of(page, size);
+    Page<Product> products = productRepository.findAll(pageRequest);
+
+    List<ProductResponse> response = products.getContent().stream().map(ProductResponse::from).toList();
+    PageResponse<ProductResponse> pageResponse =
+        PageResponse.<ProductResponse>builder()
+            .content(response)
+            .page(products.getNumber())
+            .size(products.getSize())
+            .totalElements(products.getTotalElements())
+            .totalPages(products.getTotalPages())
+            .first(products.isFirst())
+            .last(products.isLast())
+            .build();
+
+    return ResponseEntity.ok(pageResponse);
   }
 
   @Transactional
