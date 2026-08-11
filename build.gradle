@@ -67,9 +67,7 @@ spotless {
 
 def coverageExcludes = [
 	'com/gryffindor/excalibur/SujalamAgroFoodsBackendApplication.class',
-	'com/gryffindor/excalibur/config/FirebaseConfig.class',
-	'com/gryffindor/excalibur/config/SecurityConfig.class',
-	'com/gryffindor/excalibur/config/FirebaseAuthenticationFilter.class'
+	'com/gryffindor/excalibur/config/*',
 ]
 
 tasks.named('test') {

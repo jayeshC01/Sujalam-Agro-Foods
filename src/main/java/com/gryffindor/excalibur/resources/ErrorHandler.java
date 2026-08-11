@@ -6,6 +6,7 @@ import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -50,10 +51,22 @@ public class ErrorHandler {
   public ResponseEntity<ErrorResponse> handleEntityNotFoundException(
       EntityNotFoundException exception) {
     ErrorResponse errorResponse = new ErrorResponse();
-    errorResponse.setCode(HttpStatus.NO_CONTENT);
+    errorResponse.setCode(HttpStatus.NOT_FOUND);
     errorResponse.setMessage(exception.getMessage());
 
     return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+  }
+
+  @ExceptionHandler(DataIntegrityViolationException.class)
+  public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(
+      DataIntegrityViolationException exception) {
+    logger.warn("Data integrity violation", exception);
+
+    ErrorResponse errorResponse = new ErrorResponse();
+    errorResponse.setCode(HttpStatus.CONFLICT);
+    errorResponse.setMessage("A record with the same unique value already exists.");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

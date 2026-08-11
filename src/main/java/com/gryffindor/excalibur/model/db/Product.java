@@ -2,17 +2,20 @@ package com.gryffindor.excalibur.model.db;
 
 import com.gryffindor.excalibur.model.common.AuditStamp;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Check;
 
 @Entity
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
 @Table(
     name = "products",
@@ -33,26 +36,24 @@ public class Product extends AuditStamp implements Serializable {
   private Category category;
 
   @Column(name = "name", nullable = false, unique = true)
-  @NotBlank(message = "Name cannot be empty")
+  @Check(name = "chk_products_name_not_blank", constraints = "TRIM(name) <> ''")
   private String name;
 
   @Column(name = "description", length = 2000)
   private String description;
 
   @Column(name = "image_url", nullable = false, length = 500)
-  @NotBlank(message = "Image URL cannot be empty")
+  @Check(name = "chk_products_image_url_not_blank", constraints = "TRIM(image_url) <> ''")
   private String imageUrl;
 
   @Column(name = "health_benefits", length = 2000)
   private String healthBenefits;
 
   @Column(name = "price", nullable = false, precision = 10, scale = 2)
-  @NotNull(message = "Price of an item cannot be null")
-  @DecimalMin(value = "0.0", message = "Price cannot be negative")
+  @Check(name = "chk_products_price_non_negative", constraints = "price >= 0")
   private BigDecimal price;
 
   @Column(name = "quantity", nullable = false)
-  @NotNull(message = "Quantity cannot be null")
-  @Min(value = 0, message = "Quantity cannot be negative")
+  @Check(name = "chk_products_quantity_non_negative", constraints = "quantity >= 0")
   private Integer qty;
 }
