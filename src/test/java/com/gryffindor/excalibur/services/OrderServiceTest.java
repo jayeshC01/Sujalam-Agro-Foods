@@ -154,6 +154,53 @@ class OrderServiceTest {
   }
 
   @Test
+  void updateOrderStatus_updatesExistingOrder_whenRequestedByAdmin() {
+    User admin = user("admin1");
+    admin.setRole(Roles.ADMIN);
+    when(memberIdentityHandlerService.requireAdmin()).thenReturn(admin);
+
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.PENDING);
+    order.setUser(user("u1"));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(orderRepository.save(order)).thenReturn(order);
+
+    ResponseEntity<OrderResponse> response =
+        orderService.updateOrderStatus("o1", OrderStatus.COMPLETED);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody().getOrderStatus()).isEqualTo(OrderStatus.COMPLETED);
+    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.COMPLETED);
+  }
+
+  @Test
+  void updateOrderStatus_throwsAccessDenied_whenRequestedByNonAdmin() {
+    when(memberIdentityHandlerService.requireAdmin())
+        .thenThrow(new AccessDeniedException("You are not allowed to access this resource"));
+
+    assertThatThrownBy(() -> orderService.updateOrderStatus("o1", OrderStatus.COMPLETED))
+        .isInstanceOf(AccessDeniedException.class);
+  }
+
+  @Test
+  void updateOrderStatus_throwsForInvalidTransition() {
+    User admin = user("admin1");
+    admin.setRole(Roles.ADMIN);
+    when(memberIdentityHandlerService.requireAdmin()).thenReturn(admin);
+
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.COMPLETED);
+    order.setUser(user("u1"));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+
+    assertThatThrownBy(() -> orderService.updateOrderStatus("o1", OrderStatus.CANCELED))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid order status transition");
+  }
+
+  @Test
   void addOrder_computesTotalFromProductPrice_forLoggedInUser() {
     User user = user("u1");
     when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);

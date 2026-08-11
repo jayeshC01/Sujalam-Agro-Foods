@@ -1,6 +1,7 @@
 package com.gryffindor.excalibur.resources;
 
 import com.gryffindor.excalibur.model.request.OrderRequest;
+import com.gryffindor.excalibur.model.request.UpdateOrderStatusRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
 import com.gryffindor.excalibur.services.OrderService;
 import jakarta.validation.Valid;
@@ -38,5 +39,12 @@ public class OrderResource {
   @PostMapping("/orders")
   public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody OrderRequest order) {
     return orderService.addOrder(order);
+  }
+
+  @PatchMapping("/admin/orders/{id}/status")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<OrderResponse> updateOrderStatus(
+      @PathVariable String id, @Valid @RequestBody UpdateOrderStatusRequest request) {
+    return orderService.updateOrderStatus(id, request.getStatus());
   }
 }
