@@ -15,6 +15,7 @@ import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
+import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.repository.OrderRepository;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -26,6 +27,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -72,27 +76,34 @@ class OrderServiceTest {
   }
 
   @Test
-  void getAllOrders_returnsOrders_whenNotEmpty() {
+  void getAllOrders_returnsPagedResponse_whenNotEmpty() {
     Order order = new Order();
     order.setOrderId("o1");
     order.setUser(user("u1"));
-    when(orderRepository.findAll()).thenReturn(List.of(order));
+    Page<Order> page = new PageImpl<>(List.of(order), PageRequest.of(0, 10), 1);
+    when(orderRepository.findAll(PageRequest.of(0, 10))).thenReturn(page);
 
-    ResponseEntity<List<OrderResponse>> response = orderService.getAllOrders();
+    ResponseEntity<PageResponse<OrderResponse>> response = orderService.getAllOrders(0, 10);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).hasSize(1);
-    assertThat(response.getBody().get(0).getId()).isEqualTo("o1");
-    assertThat(response.getBody().get(0).getCustomer().getId()).isEqualTo("u1");
+    PageResponse<OrderResponse> body = response.getBody();
+    assertThat(body).isNotNull();
+    assertThat(body.getContent()).hasSize(1);
+    assertThat(body.getContent().get(0).getId()).isEqualTo("o1");
+    assertThat(body.getContent().get(0).getCustomer().getId()).isEqualTo("u1");
+    assertThat(body.getTotalElements()).isEqualTo(1);
   }
 
   @Test
-  void getAllOrders_returnsNoContent_whenEmpty() {
-    when(orderRepository.findAll()).thenReturn(List.of());
+  void getAllOrders_returnsEmptyPage_whenEmpty() {
+    Page<Order> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
+    when(orderRepository.findAll(PageRequest.of(0, 10))).thenReturn(page);
 
-    ResponseEntity<List<OrderResponse>> response = orderService.getAllOrders();
+    ResponseEntity<PageResponse<OrderResponse>> response = orderService.getAllOrders(0, 10);
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getContent()).isEmpty();
   }
 
   @Test

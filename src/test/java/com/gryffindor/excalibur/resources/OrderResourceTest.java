@@ -17,6 +17,7 @@ import com.gryffindor.excalibur.model.db.Address;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.request.UpdateOrderStatusRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
+import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.services.OrderService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,7 +80,17 @@ class OrderResourceTest {
   @Test
   @DisplayName("Get all orders returns ok")
   void getOrders_returnsOk() throws Exception {
-    when(orderService.getAllOrders()).thenReturn(ResponseEntity.ok(List.of(sampleOrderResponse())));
+    PageResponse<OrderResponse> pageResponse =
+        PageResponse.<OrderResponse>builder()
+            .content(List.of(sampleOrderResponse()))
+            .page(0)
+            .size(10)
+            .totalElements(1)
+            .totalPages(1)
+            .first(true)
+            .last(true)
+            .build();
+    when(orderService.getAllOrders(0, 10)).thenReturn(ResponseEntity.ok(pageResponse));
 
     mockMvc.perform(get("/orders")).andExpect(status().isOk());
   }

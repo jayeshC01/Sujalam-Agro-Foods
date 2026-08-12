@@ -16,6 +16,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.request.RegisterUser;
 import com.gryffindor.excalibur.model.response.CustomerResponse;
+import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.services.UserService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,8 +57,17 @@ class UserResourceTest {
   @Test
   @DisplayName("Get all customers returns ok")
   void getCustomers_returnsOk() throws Exception {
-    when(userServiceMock.getAllCustomers())
-        .thenReturn(ResponseEntity.ok(List.of(new CustomerResponse())));
+    PageResponse<CustomerResponse> pageResponse =
+        PageResponse.<CustomerResponse>builder()
+            .content(List.of(new CustomerResponse()))
+            .page(0)
+            .size(10)
+            .totalElements(1)
+            .totalPages(1)
+            .first(true)
+            .last(true)
+            .build();
+    when(userServiceMock.getAllCustomers(0, 10)).thenReturn(ResponseEntity.ok(pageResponse));
 
     mockMvc.perform(get("/customers")).andExpect(status().isOk());
   }

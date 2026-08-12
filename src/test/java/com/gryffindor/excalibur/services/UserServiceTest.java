@@ -14,6 +14,7 @@ import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.model.request.RegisterUser;
 import com.gryffindor.excalibur.model.response.CustomerResponse;
+import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
@@ -27,6 +28,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -147,21 +151,30 @@ class UserServiceTest {
   }
 
   @Test
-  void getAllCustomers_returnsList_whenNotEmpty() {
+  void getAllCustomers_returnsPagedResponse_whenNotEmpty() {
     User user = new User();
     user.setId("u1");
-    when(userRepository.findAll()).thenReturn(List.of(user));
+    Page<User> page = new PageImpl<>(List.of(user), PageRequest.of(0, 10), 1);
+    when(userRepository.findAll(PageRequest.of(0, 10))).thenReturn(page);
 
-    ResponseEntity<List<CustomerResponse>> response = service.getAllCustomers();
+    ResponseEntity<PageResponse<CustomerResponse>> response = service.getAllCustomers(0, 10);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).hasSize(1);
+    PageResponse<CustomerResponse> body = response.getBody();
+    assertThat(body).isNotNull();
+    assertThat(body.getContent()).hasSize(1);
+    assertThat(body.getTotalElements()).isEqualTo(1);
   }
 
   @Test
-  void getAllCustomers_throws_whenEmpty() {
-    when(userRepository.findAll()).thenReturn(List.of());
+  void getAllCustomers_returnsEmptyPage_whenEmpty() {
+    Page<User> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
+    when(userRepository.findAll(PageRequest.of(0, 10))).thenReturn(page);
 
-    assertThatThrownBy(() -> service.getAllCustomers()).isInstanceOf(EntityNotFoundException.class);
+    ResponseEntity<PageResponse<CustomerResponse>> response = service.getAllCustomers(0, 10);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getContent()).isEmpty();
   }
 }

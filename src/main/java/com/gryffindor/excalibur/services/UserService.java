@@ -5,6 +5,7 @@ import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.model.request.RegisterUser;
 import com.gryffindor.excalibur.model.response.CustomerResponse;
+import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
@@ -13,6 +14,8 @@ import jakarta.validation.Validator;
 import java.util.List;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -75,11 +78,23 @@ public class UserService {
     return ResponseEntity.ok(CustomerResponse.from(user));
   }
 
-  public ResponseEntity<List<CustomerResponse>> getAllCustomers() {
-    List<User> users = userRepository.findAll();
-    if (users.isEmpty()) {
-      throw new EntityNotFoundException("No Customers were found");
-    }
-    return ResponseEntity.ok(users.stream().map(CustomerResponse::from).toList());
+  public ResponseEntity<PageResponse<CustomerResponse>> getAllCustomers(int page, int size) {
+    PageRequest pageRequest = PageRequest.of(page, size);
+    Page<User> users = userRepository.findAll(pageRequest);
+
+    List<CustomerResponse> content =
+        users.getContent().stream().map(CustomerResponse::from).toList();
+    PageResponse<CustomerResponse> pageResponse =
+        PageResponse.<CustomerResponse>builder()
+            .content(content)
+            .page(users.getNumber())
+            .size(users.getSize())
+            .totalElements(users.getTotalElements())
+            .totalPages(users.getTotalPages())
+            .first(users.isFirst())
+            .last(users.isLast())
+            .build();
+
+    return ResponseEntity.ok(pageResponse);
   }
 }
