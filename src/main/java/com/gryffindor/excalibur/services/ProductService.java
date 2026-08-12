@@ -38,7 +38,8 @@ public class ProductService {
     PageRequest pageRequest = PageRequest.of(page, size);
     Page<Product> products = productRepository.findAll(pageRequest);
 
-    List<ProductResponse> response = products.getContent().stream().map(ProductResponse::from).toList();
+    List<ProductResponse> response =
+        products.getContent().stream().map(ProductResponse::from).toList();
     PageResponse<ProductResponse> pageResponse =
         PageResponse.<ProductResponse>builder()
             .content(response)

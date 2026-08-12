@@ -81,7 +81,8 @@ class ProductResourceTest {
 
     when(productService.findAllProduct(0, 10)).thenReturn(ResponseEntity.ok(pageResponse));
 
-    mockMvc.perform(get("/products").param("page", "0").param("size", "10"))
+    mockMvc
+        .perform(get("/products").param("page", "0").param("size", "10"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0]").exists())
         .andExpect(jsonPath("$.page").value(0))

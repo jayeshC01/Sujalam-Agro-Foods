@@ -25,8 +25,7 @@ public class ProductResource {
 
   @GetMapping("/products")
   public ResponseEntity<PageResponse<ProductResponse>> getAllProducts(
-      @RequestParam(defaultValue = "0") int page,
-      @RequestParam(defaultValue = "10") int size) {
+      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
     return productService.findAllProduct(page, size);
   }
 
