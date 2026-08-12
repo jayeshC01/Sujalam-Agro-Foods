@@ -1,6 +1,7 @@
 package com.gryffindor.excalibur.resources;
 
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
+import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
@@ -24,6 +25,16 @@ public class ErrorHandler {
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<ErrorResponse> handleAccessDeniedException(
       AccessDeniedException exception) {
+    ErrorResponse errorResponse = new ErrorResponse();
+    errorResponse.setCode(HttpStatus.FORBIDDEN);
+    errorResponse.setMessage(exception.getMessage());
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+  }
+
+  @ExceptionHandler(UserNotRegisteredException.class)
+  public ResponseEntity<ErrorResponse> handleUserNotRegisteredException(
+      UserNotRegisteredException exception) {
     ErrorResponse errorResponse = new ErrorResponse();
     errorResponse.setCode(HttpStatus.FORBIDDEN);
     errorResponse.setMessage(exception.getMessage());

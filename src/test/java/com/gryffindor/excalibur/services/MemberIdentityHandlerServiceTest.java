@@ -7,8 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.gryffindor.excalibur.config.FirebasePrincipal;
 import com.gryffindor.excalibur.model.db.User;
+import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.repository.UserRepository;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -63,7 +63,18 @@ class MemberIdentityHandlerServiceTest {
     when(userRepository.findByFirebaseUid("uid-ghost")).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> memberIdentityHandlerService.getLoggedInMemberID())
-        .isInstanceOf(NoSuchElementException.class);
+        .isInstanceOf(UserNotRegisteredException.class);
+  }
+
+  @Test
+  void getLoggedInUser_throwsUserNotRegistered_whenNoLocalProfileExists() {
+    withPrincipal(new FirebasePrincipal("uid-ghost", "ghost@example.com", true));
+
+    when(userRepository.findByFirebaseUid("uid-ghost")).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> memberIdentityHandlerService.getLoggedInUser())
+        .isInstanceOf(UserNotRegisteredException.class)
+        .hasMessageContaining("complete registration");
   }
 
   @Test

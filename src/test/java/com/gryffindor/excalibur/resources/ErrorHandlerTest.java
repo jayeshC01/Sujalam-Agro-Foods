@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
+import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
@@ -27,6 +28,19 @@ class ErrorHandlerTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getMessage()).isEqualTo("Product with id 1 not found");
+  }
+
+  @Test
+  void handleUserNotRegisteredException_returnsForbiddenWithClearMessage() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleUserNotRegisteredException(
+            new UserNotRegisteredException(
+                "No profile found for this account. Please complete registration first."));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage())
+        .isEqualTo("No profile found for this account. Please complete registration first.");
   }
 
   @Test

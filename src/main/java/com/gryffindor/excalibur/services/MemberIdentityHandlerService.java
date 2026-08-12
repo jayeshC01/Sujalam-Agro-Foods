@@ -3,6 +3,7 @@ package com.gryffindor.excalibur.services;
 import com.gryffindor.excalibur.config.FirebasePrincipal;
 import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.User;
+import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.repository.UserRepository;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,14 +29,17 @@ public class MemberIdentityHandlerService {
   public User getLoggedInUser() {
     String firebaseUid = getCurrentFirebasePrincipal().uid();
     Optional<User> user = userRepository.findByFirebaseUid(firebaseUid);
-    return user.orElseThrow();
+    return user.orElseThrow(
+        () ->
+            new UserNotRegisteredException(
+                "No profile found for this account. Please complete registration first."));
   }
 
   public String getLoggedInMemberID() {
     return getLoggedInUser().getId();
   }
 
-  public User requireAdmin() {
+  public User requireAdmin() throws AccessDeniedException {
     User currentUser = getLoggedInUser();
     if (currentUser.getRole() != Roles.ADMIN) {
       throw new AccessDeniedException("You are not allowed to access this resource");
