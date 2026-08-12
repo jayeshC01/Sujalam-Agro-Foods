@@ -29,15 +29,18 @@ public class OrderService {
   private final OrderRepository orderRepository;
   private final ProductRepository productRepository;
   private final MemberIdentityHandlerService memberIdentityHandlerService;
+  private final EmailService emailService;
 
   @Autowired
   OrderService(
       OrderRepository orderRepository,
       ProductRepository productRepository,
-      MemberIdentityHandlerService memberIdentityHandlerService) {
+      MemberIdentityHandlerService memberIdentityHandlerService,
+      EmailService emailService) {
     this.orderRepository = orderRepository;
     this.productRepository = productRepository;
     this.memberIdentityHandlerService = memberIdentityHandlerService;
+    this.emailService = emailService;
   }
 
   public ResponseEntity<PageResponse<OrderResponse>> getAllOrders(int page, int size) {
@@ -122,6 +125,7 @@ public class OrderService {
     order.setOrderTotal(orderTotal);
 
     Order savedOrder = orderRepository.save(order);
+    emailService.sendOrderConfirmationEmail(savedOrder);
     return ResponseEntity.ok(OrderResponse.from(savedOrder));
   }
 
