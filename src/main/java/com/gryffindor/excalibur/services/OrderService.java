@@ -119,4 +119,23 @@ public class OrderService {
     }
     return ResponseEntity.ok(orders.stream().map(OrderResponse::from).toList());
   }
+
+  @Transactional
+  public ResponseEntity<OrderResponse> updateOrderStatus(String id, OrderStatus status) {
+    memberIdentityHandlerService.requireAdmin();
+
+    Order order =
+        orderRepository
+            .findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("Order with id " + id + " not found"));
+
+    if (!order.getOrderStatus().canTransitionTo(status)) {
+      throw new IllegalArgumentException(
+          "Invalid order status transition from " + order.getOrderStatus() + " to " + status);
+    }
+
+    order.setOrderStatus(status);
+    Order updatedOrder = orderRepository.save(order);
+    return ResponseEntity.ok(OrderResponse.from(updatedOrder));
+  }
 }

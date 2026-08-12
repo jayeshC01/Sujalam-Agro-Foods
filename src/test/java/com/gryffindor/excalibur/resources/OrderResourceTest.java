@@ -6,13 +6,16 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gryffindor.excalibur.model.constants.OrderStatus;
 import com.gryffindor.excalibur.model.db.Address;
 import com.gryffindor.excalibur.model.request.OrderRequest;
+import com.gryffindor.excalibur.model.request.UpdateOrderStatusRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
 import com.gryffindor.excalibur.services.OrderService;
 import java.util.List;
@@ -105,6 +108,24 @@ class OrderResourceTest {
         .andExpect(status().isOk());
 
     verify(orderService).addOrder(any());
+  }
+
+  @Test
+  @DisplayName("Admin can update order status")
+  void updateOrderStatus_returnsOk() throws Exception {
+    UpdateOrderStatusRequest request = new UpdateOrderStatusRequest(OrderStatus.COMPLETED);
+
+    when(orderService.updateOrderStatus("o1", OrderStatus.COMPLETED))
+        .thenReturn(ResponseEntity.ok(sampleOrderResponse()));
+
+    mockMvc
+        .perform(
+            patch("/admin/orders/o1/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk());
+
+    verify(orderService).updateOrderStatus("o1", OrderStatus.COMPLETED);
   }
 
   @Test
