@@ -3,9 +3,9 @@ package com.gryffindor.excalibur.resources;
 import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.request.RegisterUser;
 import com.gryffindor.excalibur.model.response.CustomerResponse;
+import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.services.UserService;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,8 +27,9 @@ public class UserResource {
 
   @GetMapping("/customers")
   @PreAuthorize("hasRole('ADMIN')")
-  public ResponseEntity<List<CustomerResponse>> getCustomers() {
-    return userService.getAllCustomers();
+  public ResponseEntity<PageResponse<CustomerResponse>> getCustomers(
+      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+    return userService.getAllCustomers(page, size);
   }
 
   @PostMapping("/customer/register")

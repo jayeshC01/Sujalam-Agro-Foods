@@ -9,6 +9,7 @@ import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
+import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.repository.OrderRepository;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -16,6 +17,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -37,12 +40,23 @@ public class OrderService {
     this.memberIdentityHandlerService = memberIdentityHandlerService;
   }
 
-  public ResponseEntity<List<OrderResponse>> getAllOrders() {
-    List<Order> orders = orderRepository.findAll();
-    if (orders.isEmpty()) {
-      return ResponseEntity.noContent().build();
-    }
-    return ResponseEntity.ok(orders.stream().map(OrderResponse::from).toList());
+  public ResponseEntity<PageResponse<OrderResponse>> getAllOrders(int page, int size) {
+    PageRequest pageRequest = PageRequest.of(page, size);
+    Page<Order> orders = orderRepository.findAll(pageRequest);
+
+    List<OrderResponse> content = orders.getContent().stream().map(OrderResponse::from).toList();
+    PageResponse<OrderResponse> pageResponse =
+        PageResponse.<OrderResponse>builder()
+            .content(content)
+            .page(orders.getNumber())
+            .size(orders.getSize())
+            .totalElements(orders.getTotalElements())
+            .totalPages(orders.getTotalPages())
+            .first(orders.isFirst())
+            .last(orders.isLast())
+            .build();
+
+    return ResponseEntity.ok(pageResponse);
   }
 
   public ResponseEntity<OrderResponse> getOrderById(String id) {

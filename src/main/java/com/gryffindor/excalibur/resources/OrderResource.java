@@ -3,6 +3,7 @@ package com.gryffindor.excalibur.resources;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.request.UpdateOrderStatusRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
+import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.services.OrderService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -27,8 +28,9 @@ public class OrderResource {
 
   @GetMapping("/orders")
   @PreAuthorize("hasRole('ADMIN')")
-  public ResponseEntity<List<OrderResponse>> getOrders() {
-    return orderService.getAllOrders();
+  public ResponseEntity<PageResponse<OrderResponse>> getOrders(
+      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+    return orderService.getAllOrders(page, size);
   }
 
   @GetMapping("/customer/orders")
