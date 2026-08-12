@@ -43,12 +43,15 @@ class OrderServiceTest {
 
   @Mock private MemberIdentityHandlerService memberIdentityHandlerService;
 
+  @Mock private EmailService emailService;
+
   private OrderService orderService;
 
   @BeforeEach
   void setUp() {
     orderService =
-        new OrderService(orderRepository, productRepository, memberIdentityHandlerService);
+        new OrderService(
+            orderRepository, productRepository, memberIdentityHandlerService, emailService);
     // addOrder() reads the saved order's fields back to build the response DTO; echo the
     // argument back the way a real save() would return the persisted (same) entity.
     org.mockito.Mockito.lenient()
