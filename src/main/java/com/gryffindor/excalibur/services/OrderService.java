@@ -131,10 +131,7 @@ public class OrderService {
 
     if (!order.getOrderStatus().canTransitionTo(status)) {
       throw new IllegalArgumentException(
-          "Invalid order status transition from "
-              + order.getOrderStatus()
-              + " to "
-              + status);
+          "Invalid order status transition from " + order.getOrderStatus() + " to " + status);
     }
 
     order.setOrderStatus(status);
