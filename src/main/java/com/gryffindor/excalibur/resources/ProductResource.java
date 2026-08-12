@@ -1,10 +1,10 @@
 package com.gryffindor.excalibur.resources;
 
 import com.gryffindor.excalibur.model.request.ProductRequest;
+import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.model.response.ProductResponse;
 import com.gryffindor.excalibur.services.ProductService;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,8 +24,9 @@ public class ProductResource {
   }
 
   @GetMapping("/products")
-  public ResponseEntity<List<ProductResponse>> getAllProducts() {
-    return productService.findAllProduct();
+  public ResponseEntity<PageResponse<ProductResponse>> getAllProducts(
+      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+    return productService.findAllProduct(page, size);
   }
 
   @PostMapping("/admin/product")
