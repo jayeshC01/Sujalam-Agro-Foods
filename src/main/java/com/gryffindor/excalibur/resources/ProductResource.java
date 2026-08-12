@@ -5,11 +5,15 @@ import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.model.response.ProductResponse;
 import com.gryffindor.excalibur.services.ProductService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@Validated
 public class ProductResource {
   private final ProductService productService;
 
@@ -25,7 +29,8 @@ public class ProductResource {
 
   @GetMapping("/products")
   public ResponseEntity<PageResponse<ProductResponse>> getAllProducts(
-      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+      @RequestParam(defaultValue = "0") @Min(0) int page,
+      @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
     return productService.findAllProduct(page, size);
   }
 
