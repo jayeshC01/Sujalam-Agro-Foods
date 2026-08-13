@@ -13,6 +13,8 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import java.util.List;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserService {
+  private static final Logger log = LoggerFactory.getLogger(UserService.class);
+
   private final UserRepository userRepository;
   private final MemberIdentityHandlerService memberIdentityHandlerService;
   private final Validator validator;
@@ -44,6 +48,7 @@ public class UserService {
 
     User existingUser = userRepository.findByFirebaseUid(principal.uid()).orElse(null);
     if (existingUser != null) {
+      log.info("Registration attempted for already-registered user {}", existingUser.getId());
       return new ResponseEntity<>("User is already registered", HttpStatus.BAD_REQUEST);
     }
 
@@ -61,6 +66,7 @@ public class UserService {
     }
 
     userRepository.save(user);
+    log.info("User {} registered with role {}", user.getId(), role);
     return new ResponseEntity<>("Registered Successfully", HttpStatus.OK);
   }
 

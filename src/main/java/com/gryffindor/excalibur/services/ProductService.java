@@ -8,6 +8,8 @@ import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -19,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ProductService {
+  private static final Logger log = LoggerFactory.getLogger(ProductService.class);
+
   private final ProductRepository productRepository;
 
   @Autowired
@@ -63,6 +67,11 @@ public class ProductService {
 
     Product product = productRequest.toProduct();
     productRepository.save(product);
+    log.info(
+        "Product {} '{}' created with qty {}",
+        product.getId(),
+        product.getName(),
+        product.getQty());
     return new ResponseEntity<>("Product Added successfully", HttpStatus.CREATED);
   }
 
@@ -82,6 +91,8 @@ public class ProductService {
           "Product with name '" + productRequest.getName() + "' already exists");
     }
 
+    Integer previousQty = existingProduct.getQty();
+
     existingProduct.setCategory(productRequest.getCategory());
     existingProduct.setName(productRequest.getName());
     existingProduct.setDescription(productRequest.getDescription());
@@ -90,20 +101,28 @@ public class ProductService {
     existingProduct.setPrice(productRequest.getPrice());
     existingProduct.setQty(productRequest.getQty());
     productRepository.save(existingProduct);
+    log.info(
+        "Product {} '{}' updated (qty {} -> {})",
+        id,
+        existingProduct.getName(),
+        previousQty,
+        existingProduct.getQty());
 
     return new ResponseEntity<>("Product updated successfully", HttpStatus.OK);
   }
 
   @Transactional
   public ResponseEntity<String> deleteProduct(String id) {
-    productRepository
-        .findById(id)
-        .orElseThrow(
-            () ->
-                new EntityNotFoundException(
-                    "Product with id " + id + " not found. Deletion cannot be performed"));
+    Product product =
+        productRepository
+            .findById(id)
+            .orElseThrow(
+                () ->
+                    new EntityNotFoundException(
+                        "Product with id " + id + " not found. Deletion cannot be performed"));
 
     productRepository.deleteById(id);
+    log.info("Product {} '{}' deleted", id, product.getName());
     return new ResponseEntity<>("Product deleted successfully", HttpStatus.OK);
   }
 }
