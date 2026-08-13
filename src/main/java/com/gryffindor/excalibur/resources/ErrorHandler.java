@@ -1,5 +1,6 @@
 package com.gryffindor.excalibur.resources;
 
+import com.gryffindor.excalibur.config.RequestLoggingFilter;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
@@ -8,6 +9,7 @@ import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,21 +27,15 @@ public class ErrorHandler {
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<ErrorResponse> handleAccessDeniedException(
       AccessDeniedException exception) {
-    ErrorResponse errorResponse = new ErrorResponse();
-    errorResponse.setCode(HttpStatus.FORBIDDEN);
-    errorResponse.setMessage(exception.getMessage());
-
-    return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+    logger.warn("Access denied: {}", exception.getMessage());
+    return constructErrorResponse(HttpStatus.FORBIDDEN, exception.getMessage(), null);
   }
 
   @ExceptionHandler(UserNotRegisteredException.class)
   public ResponseEntity<ErrorResponse> handleUserNotRegisteredException(
       UserNotRegisteredException exception) {
-    ErrorResponse errorResponse = new ErrorResponse();
-    errorResponse.setCode(HttpStatus.FORBIDDEN);
-    errorResponse.setMessage(exception.getMessage());
-
-    return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+    logger.warn("User not registered: {}", exception.getMessage());
+    return constructErrorResponse(HttpStatus.FORBIDDEN, exception.getMessage(), null);
   }
 
   @ExceptionHandler(ConstraintViolationException.class)
@@ -50,46 +46,37 @@ public class ErrorHandler {
             .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
             .sorted()
             .collect(Collectors.joining("; "));
+    logger.warn("Constraint validation failed: {}", details);
 
-    ErrorResponse errorResponse = new ErrorResponse();
-    errorResponse.setCode(HttpStatus.BAD_REQUEST);
-    errorResponse.setMessage("Data Constraint validation failed. Please provide correct details");
-    errorResponse.setDetails(details);
-
-    return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    return constructErrorResponse(
+        HttpStatus.BAD_REQUEST,
+        "Data Constraint validation failed. Please provide correct details",
+        details);
   }
 
   @ExceptionHandler(EntityNotFoundException.class)
   public ResponseEntity<ErrorResponse> handleEntityNotFoundException(
       EntityNotFoundException exception) {
-    ErrorResponse errorResponse = new ErrorResponse();
-    errorResponse.setCode(HttpStatus.NOT_FOUND);
-    errorResponse.setMessage(exception.getMessage());
-
-    return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    logger.info("Entity not found: {}", exception.getMessage());
+    return constructErrorResponse(HttpStatus.NOT_FOUND, exception.getMessage(), null);
   }
 
   @ExceptionHandler(DataIntegrityViolationException.class)
   public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(
       DataIntegrityViolationException exception) {
     logger.warn("Data integrity violation", exception);
-
-    ErrorResponse errorResponse = new ErrorResponse();
-    errorResponse.setCode(HttpStatus.CONFLICT);
-    errorResponse.setMessage("A record with the same unique value already exists.");
-
-    return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+    return constructErrorResponse(
+        HttpStatus.CONFLICT, "A record with the same unique value already exists.", null);
   }
 
   @ExceptionHandler(InsufficientStockException.class)
   public ResponseEntity<ErrorResponse> handleInsufficientStockException(
       InsufficientStockException exception) {
-    ErrorResponse errorResponse = new ErrorResponse();
-    errorResponse.setCode(HttpStatus.CONFLICT);
-    errorResponse.setMessage("This item just went out of stock. Please try again.");
-    errorResponse.setDetails(exception.getMessage());
-
-    return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+    logger.warn("Insufficient stock: {}", exception.getMessage());
+    return constructErrorResponse(
+        HttpStatus.CONFLICT,
+        "This item just went out of stock. Please try again.",
+        exception.getMessage());
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -100,46 +87,48 @@ public class ErrorHandler {
             .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
             .sorted()
             .collect(Collectors.joining("; "));
+    logger.warn("Validation failed: {}", details);
 
-    ErrorResponse errorResponse = new ErrorResponse();
-    errorResponse.setCode(HttpStatus.BAD_REQUEST);
-    errorResponse.setMessage("Validation failed. Please provide correct details");
-    errorResponse.setDetails(details);
-
-    return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    return constructErrorResponse(
+        HttpStatus.BAD_REQUEST, "Validation failed. Please provide correct details", details);
   }
 
   @ExceptionHandler(HttpMessageNotReadableException.class)
   public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(
       HttpMessageNotReadableException exception) {
     logger.warn("Malformed request body", exception);
-
-    ErrorResponse errorResponse = new ErrorResponse();
-    errorResponse.setCode(HttpStatus.BAD_REQUEST);
-    errorResponse.setMessage("Malformed request body. Please check the request and try again.");
-
-    return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    return constructErrorResponse(
+        HttpStatus.BAD_REQUEST,
+        "Malformed request body. Please check the request and try again.",
+        null);
   }
 
   @ExceptionHandler(RuntimeException.class)
   public ResponseEntity<ErrorResponse> handleGenericRuntimeError(RuntimeException exception) {
     logger.error("Unhandled runtime exception", exception);
-
-    ErrorResponse errorResponse = new ErrorResponse();
-    errorResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR);
-    errorResponse.setMessage("An unexpected error occurred. Please try again later.");
-
-    return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    return constructErrorResponse(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "An unexpected error occurred. Please try again later.",
+        null);
   }
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ErrorResponse> handleGenericError(Exception exception) {
     logger.error("Unhandled exception", exception);
+    return constructErrorResponse(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "An unexpected error occurred. Please try again later.",
+        null);
+  }
 
+  private ResponseEntity<ErrorResponse> constructErrorResponse(
+      HttpStatus status, String message, String details) {
     ErrorResponse errorResponse = new ErrorResponse();
-    errorResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR);
-    errorResponse.setMessage("An unexpected error occurred. Please try again later.");
+    errorResponse.setCode(status);
+    errorResponse.setMessage(message);
+    errorResponse.setDetails(details);
+    errorResponse.setRequestId(MDC.get(RequestLoggingFilter.REQUEST_ID_MDC_KEY));
 
-    return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    return new ResponseEntity<>(errorResponse, status);
   }
 }

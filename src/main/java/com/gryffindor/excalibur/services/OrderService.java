@@ -16,6 +16,8 @@ import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class OrderService {
+  private static final Logger log = LoggerFactory.getLogger(OrderService.class);
+
   private final OrderRepository orderRepository;
   private final ProductRepository productRepository;
   private final MemberIdentityHandlerService memberIdentityHandlerService;
@@ -125,6 +129,12 @@ public class OrderService {
     order.setOrderTotal(orderTotal);
 
     Order savedOrder = orderRepository.save(order);
+    log.info(
+        "Order {} created for user {} - {} item(s), total {}",
+        savedOrder.getOrderId(),
+        user.getId(),
+        orderDetails.size(),
+        orderTotal);
     emailService.sendOrderConfirmationEmail(savedOrder);
     return ResponseEntity.ok(OrderResponse.from(savedOrder));
   }
@@ -147,13 +157,15 @@ public class OrderService {
             .findById(id)
             .orElseThrow(() -> new EntityNotFoundException("Order with id " + id + " not found"));
 
-    if (!order.getOrderStatus().canTransitionTo(status)) {
+    OrderStatus previousStatus = order.getOrderStatus();
+    if (!previousStatus.canTransitionTo(status)) {
       throw new IllegalArgumentException(
-          "Invalid order status transition from " + order.getOrderStatus() + " to " + status);
+          "Invalid order status transition from " + previousStatus + " to " + status);
     }
 
     order.setOrderStatus(status);
     Order updatedOrder = orderRepository.save(order);
+    log.info("Order {} status changed {} -> {}", id, previousStatus, status);
     return ResponseEntity.ok(OrderResponse.from(updatedOrder));
   }
 }

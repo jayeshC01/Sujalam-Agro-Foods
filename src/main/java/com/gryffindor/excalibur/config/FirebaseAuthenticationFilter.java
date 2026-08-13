@@ -12,6 +12,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -28,6 +30,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 @Component
 public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
+
+  private static final Logger log = LoggerFactory.getLogger(FirebaseAuthenticationFilter.class);
 
   private final FirebaseAuth firebaseAuth;
   private final UserRepository userRepository;
@@ -70,6 +74,7 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         SecurityContextHolder.getContext().setAuthentication(authentication);
       } catch (FirebaseAuthException ex) {
+        log.warn("Firebase token verification failed: {}", ex.getMessage());
         SecurityContextHolder.clearContext();
       }
     }
