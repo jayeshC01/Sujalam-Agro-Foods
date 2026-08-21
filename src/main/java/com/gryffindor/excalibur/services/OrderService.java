@@ -157,15 +157,74 @@ public class OrderService {
             .findById(id)
             .orElseThrow(() -> new EntityNotFoundException("Order with id " + id + " not found"));
 
+    return ResponseEntity.ok(OrderResponse.from(applyStatusChange(order, status)));
+  }
+
+  /**
+   * Lets a customer call off their own order. Orders are never deleted - cancellation is a status
+   * change, so the order stays queryable as business and audit history and its line items keep
+   * pointing at the products they were bought at.
+   */
+  @Transactional
+  public ResponseEntity<OrderResponse> cancelOrder(String id) {
+    Order order =
+        orderRepository
+            .findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("Order with id " + id + " not found"));
+
+    User currentUser = memberIdentityHandlerService.getLoggedInUser();
+    if (currentUser.getRole() != Roles.ADMIN
+        && !order.getUser().getId().equals(currentUser.getId())) {
+      throw new AccessDeniedException("You are not allowed to cancel this order");
+    }
+
+    return ResponseEntity.ok(OrderResponse.from(applyStatusChange(order, OrderStatus.CANCELED)));
+  }
+
+  /**
+   * Shared transition path for both the admin status update and a customer cancellation: validates
+   * the move against {@link OrderStatus#canTransitionTo}, puts stock back on the way into CANCELED,
+   * and persists. Callers are responsible for authorization before calling this.
+   */
+  private Order applyStatusChange(Order order, OrderStatus status) {
     OrderStatus previousStatus = order.getOrderStatus();
     if (!previousStatus.canTransitionTo(status)) {
       throw new IllegalArgumentException(
           "Invalid order status transition from " + previousStatus + " to " + status);
     }
 
+    if (status == OrderStatus.CANCELED) {
+      restoreStock(order);
+    }
+
     order.setOrderStatus(status);
     Order updatedOrder = orderRepository.save(order);
-    log.info("Order {} status changed {} -> {}", id, previousStatus, status);
-    return ResponseEntity.ok(OrderResponse.from(updatedOrder));
+    log.info("Order {} status changed {} -> {}", order.getOrderId(), previousStatus, status);
+    return updatedOrder;
+  }
+
+  private void restoreStock(Order order) {
+    if (order.getOrderDetails() == null) {
+      return;
+    }
+
+    for (OrderDetails item : order.getOrderDetails()) {
+      String productId = item.getProduct().getId();
+      int updatedRows = productRepository.incrementStock(productId, item.getOrderedQty());
+      if (updatedRows == 0) {
+        log.warn(
+            "Could not restore {} unit(s) of product {} while canceling order {} - product row not"
+                + " found",
+            item.getOrderedQty(),
+            productId,
+            order.getOrderId());
+      } else {
+        log.info(
+            "Restored {} unit(s) of product {} from canceled order {}",
+            item.getOrderedQty(),
+            productId,
+            order.getOrderId());
+      }
+    }
   }
 }

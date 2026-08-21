@@ -44,6 +44,18 @@ class ErrorHandlerTest {
   }
 
   @Test
+  void handleIllegalArgumentException_returnsBadRequest() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleIllegalArgumentException(
+            new IllegalArgumentException("Invalid order status transition from A to B"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage())
+        .isEqualTo("Invalid order status transition from A to B");
+  }
+
+  @Test
   void handleConstraintViolationException_returnsBadRequest() {
     ConstraintViolationException exception =
         new ConstraintViolationException("invalid", Collections.emptySet());

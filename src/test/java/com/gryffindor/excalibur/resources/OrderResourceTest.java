@@ -140,6 +140,28 @@ class OrderResourceTest {
   }
 
   @Test
+  @DisplayName("Customer can cancel their own order")
+  void cancelOrder_returnsOk() throws Exception {
+    when(orderService.cancelOrder("o1")).thenReturn(ResponseEntity.ok(sampleOrderResponse()));
+
+    mockMvc.perform(post("/orders/o1/cancel")).andExpect(status().isOk());
+
+    verify(orderService).cancelOrder("o1");
+  }
+
+  @Test
+  @DisplayName("Cancelling an order in a non-cancellable state returns 400")
+  void cancelOrder_returnsBadRequest_forInvalidTransition() throws Exception {
+    when(orderService.cancelOrder("o1"))
+        .thenThrow(new IllegalArgumentException("Invalid order status transition"));
+
+    mockMvc
+        .perform(post("/orders/o1/cancel"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(containsString("Invalid order status transition")));
+  }
+
+  @Test
   @DisplayName("Request with empty product list is rejected")
   void emptyProductList_isRejected() throws Exception {
     OrderRequest orderRequest = new OrderRequest(List.of(), validAddress());
