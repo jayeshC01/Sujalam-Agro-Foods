@@ -228,6 +228,42 @@ class ProductResourceTest {
   }
 
   @Test
+  @DisplayName("Restock request with valid quantity returns ok")
+  void restockProduct_returnsOk() throws Exception {
+    when(productService.restockProduct("p1", 10))
+        .thenReturn(new ResponseEntity<>("Product restocked successfully", HttpStatus.OK));
+
+    mockMvc
+        .perform(post("/admin/product/{id}/restock", "p1").param("quantity", "10"))
+        .andExpect(status().isOk());
+
+    verify(productService).restockProduct("p1", 10);
+  }
+
+  @Test
+  @DisplayName("Restock request with missing quantity is rejected")
+  void restockProduct_missingQuantity_isRejected() throws Exception {
+    mockMvc.perform(post("/admin/product/{id}/restock", "p1")).andExpect(status().isBadRequest());
+
+    verify(productService, never()).restockProduct(any(), any(Integer.class));
+  }
+
+  @Test
+  @DisplayName("Restock request with zero or negative quantity is rejected")
+  void restockProduct_nonPositiveQuantity_isRejected() throws Exception {
+    when(productService.restockProduct("p1", 0))
+        .thenThrow(new IllegalArgumentException("Restock quantity must be greater than 0"));
+
+    mockMvc
+        .perform(post("/admin/product/{id}/restock", "p1").param("quantity", "0"))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.message").value(containsString("Restock quantity must be greater than 0")));
+
+    verify(productService).restockProduct("p1", 0);
+  }
+
+  @Test
   @DisplayName("delete product by id returns ok")
   void deleteProductById_returnsOk() throws Exception {
     when(productService.deleteProduct("p1"))

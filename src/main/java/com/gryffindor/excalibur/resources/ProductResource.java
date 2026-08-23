@@ -45,6 +45,13 @@ public class ProductResource {
     return productService.updateProductById(id, productRequest);
   }
 
+  @PostMapping("/admin/product/{id}/restock")
+  public ResponseEntity<String> restockProduct(
+      @PathVariable String id,
+      @RequestParam @Min(value = 1, message = "Restock quantity must be at least 1") int quantity) {
+    return productService.restockProduct(id, quantity);
+  }
+
   @DeleteMapping("/admin/product/{id}")
   public ResponseEntity<String> deleteProductById(@PathVariable String id) {
     return productService.deleteProduct(id);

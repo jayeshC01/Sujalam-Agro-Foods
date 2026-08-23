@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -100,6 +101,16 @@ public class ErrorHandler {
     return constructErrorResponse(
         HttpStatus.BAD_REQUEST,
         "Malformed request body. Please check the request and try again.",
+        null);
+  }
+
+  @ExceptionHandler(MissingServletRequestParameterException.class)
+  public ResponseEntity<ErrorResponse> handleMissingServletRequestParameterException(
+      MissingServletRequestParameterException exception) {
+    logger.warn("Missing request parameter: {}", exception.getParameterName());
+    return constructErrorResponse(
+        HttpStatus.BAD_REQUEST,
+        "Required request parameter '" + exception.getParameterName() + "' is missing",
         null);
   }
 

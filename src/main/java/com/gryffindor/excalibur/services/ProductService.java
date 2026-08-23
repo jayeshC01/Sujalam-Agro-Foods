@@ -91,24 +91,30 @@ public class ProductService {
           "Product with name '" + productRequest.getName() + "' already exists");
     }
 
-    Integer previousQty = existingProduct.getQty();
-
     existingProduct.setCategory(productRequest.getCategory());
     existingProduct.setName(productRequest.getName());
     existingProduct.setDescription(productRequest.getDescription());
     existingProduct.setImageUrl(productRequest.getImageUrl());
     existingProduct.setHealthBenefits(productRequest.getHealthBenefits());
     existingProduct.setPrice(productRequest.getPrice());
-    existingProduct.setQty(productRequest.getQty());
     productRepository.save(existingProduct);
-    log.info(
-        "Product {} '{}' updated (qty {} -> {})",
-        id,
-        existingProduct.getName(),
-        previousQty,
-        existingProduct.getQty());
+    log.info("Product {} '{}' updated", id, existingProduct.getName());
 
     return new ResponseEntity<>("Product updated successfully", HttpStatus.OK);
+  }
+
+  @Transactional
+  public ResponseEntity<String> restockProduct(String id, int quantity) {
+    if (quantity <= 0) {
+      throw new IllegalArgumentException("Restock quantity must be greater than 0");
+    }
+    int updatedRows = productRepository.incrementStock(id, quantity);
+    if (updatedRows == 0) {
+      throw new EntityNotFoundException(
+          "Product with id " + id + " not found. Restock cannot be performed");
+    }
+    log.info("Product {} restocked with {} unit(s)", id, quantity);
+    return new ResponseEntity<>("Product restocked successfully", HttpStatus.OK);
   }
 
   @Transactional

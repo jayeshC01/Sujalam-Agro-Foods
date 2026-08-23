@@ -199,7 +199,8 @@ class ProductServiceTest {
     assertThat(product.getImageUrl()).isEqualTo("https://example.com/wheat.png");
     assertThat(product.getHealthBenefits()).isNull();
     assertThat(product.getPrice()).isEqualByComparingTo(new BigDecimal("200.00"));
-    assertThat(product.getQty()).isEqualTo(20);
+    assertThat(product.getQty())
+        .isEqualTo(10); // Qty is preserved, not overwritten by catalog updates
     verify(productRepository).save(product);
   }
 
@@ -244,6 +245,44 @@ class ProductServiceTest {
         .isInstanceOf(EntityNotFoundException.class)
         .hasMessageContaining("missing");
     verify(productRepository, never()).save(any());
+  }
+
+  // ---------- restockProduct ----------
+
+  @Test
+  @DisplayName("restockProduct atomically increments stock and returns 200 when found")
+  void restockProduct_incrementsStock_whenFound() {
+    when(productRepository.incrementStock("p1", 15)).thenReturn(1);
+
+    ResponseEntity<String> response = productService.restockProduct("p1", 15);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isEqualTo("Product restocked successfully");
+    verify(productRepository).incrementStock("p1", 15);
+  }
+
+  @Test
+  @DisplayName("restockProduct throws EntityNotFoundException when product does not exist")
+  void restockProduct_throwsNotFound_whenMissing() {
+    when(productRepository.incrementStock("missing", 10)).thenReturn(0);
+
+    assertThatThrownBy(() -> productService.restockProduct("missing", 10))
+        .isInstanceOf(EntityNotFoundException.class)
+        .hasMessageContaining("missing");
+  }
+
+  @Test
+  @DisplayName("restockProduct throws IllegalArgumentException when quantity is zero or negative")
+  void restockProduct_throwsIllegalArgument_whenQuantityNonPositive() {
+    assertThatThrownBy(() -> productService.restockProduct("p1", 0))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Restock quantity must be greater than 0");
+
+    assertThatThrownBy(() -> productService.restockProduct("p1", -5))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Restock quantity must be greater than 0");
+
+    verify(productRepository, never()).incrementStock(any(), any(Integer.class));
   }
 
   // ---------- deleteProduct ----------
