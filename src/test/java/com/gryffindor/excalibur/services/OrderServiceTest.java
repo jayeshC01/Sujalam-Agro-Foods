@@ -10,6 +10,7 @@ import com.gryffindor.excalibur.model.constants.OrderStatus;
 import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.Address;
 import com.gryffindor.excalibur.model.db.Order;
+import com.gryffindor.excalibur.model.db.OrderDetails;
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
@@ -212,6 +213,263 @@ class OrderServiceTest {
     assertThatThrownBy(() -> orderService.updateOrderStatus("o1", OrderStatus.CANCELED))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Invalid order status transition");
+  }
+
+  private OrderDetails orderDetail(Product product, int qty) {
+    OrderDetails detail = new OrderDetails();
+    detail.setProduct(product);
+    detail.setOrderedQty(qty);
+    detail.setUnitPrice(product.getPrice());
+    detail.setSubTotal(product.getPrice().multiply(BigDecimal.valueOf(qty)));
+    return detail;
+  }
+
+  private Product product(String id, String name, String price, int qty) {
+    Product product = new Product();
+    product.setId(id);
+    product.setName(name);
+    product.setPrice(new BigDecimal(price));
+    product.setQty(qty);
+    return product;
+  }
+
+  @Test
+  void updateOrderStatus_restoresStock_whenOrderIsCanceled() {
+    User admin = user("admin1");
+    admin.setRole(Roles.ADMIN);
+    when(memberIdentityHandlerService.requireAdmin()).thenReturn(admin);
+
+    Product product = product("p1", "Cashews", "50.00", 8);
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.PENDING);
+    order.setUser(user("u1"));
+    order.setOrderDetails(List.of(orderDetail(product, 2)));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(productRepository.incrementStock("p1", 2)).thenReturn(1);
+
+    ResponseEntity<OrderResponse> response =
+        orderService.updateOrderStatus("o1", OrderStatus.CANCELED);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody().getOrderStatus()).isEqualTo(OrderStatus.CANCELED);
+    verify(productRepository).incrementStock("p1", 2);
+  }
+
+  @Test
+  void updateOrderStatus_restoresStockPerLineItem_forMultiProductOrder() {
+    User admin = user("admin1");
+    admin.setRole(Roles.ADMIN);
+    when(memberIdentityHandlerService.requireAdmin()).thenReturn(admin);
+
+    Product product1 = product("p1", "Cashews", "50.00", 5);
+    Product product2 = product("p2", "Walnuts", "20.00", 5);
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.PENDING);
+    order.setUser(user("u1"));
+    order.setOrderDetails(List.of(orderDetail(product1, 1), orderDetail(product2, 3)));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(productRepository.incrementStock("p1", 1)).thenReturn(1);
+    when(productRepository.incrementStock("p2", 3)).thenReturn(1);
+
+    orderService.updateOrderStatus("o1", OrderStatus.CANCELED);
+
+    verify(productRepository).incrementStock("p1", 1);
+    verify(productRepository).incrementStock("p2", 3);
+  }
+
+  @Test
+  void updateOrderStatus_doesNotRestoreStock_whenOrderIsCompleted() {
+    User admin = user("admin1");
+    admin.setRole(Roles.ADMIN);
+    when(memberIdentityHandlerService.requireAdmin()).thenReturn(admin);
+
+    Product product = product("p1", "Cashews", "50.00", 8);
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.PENDING);
+    order.setUser(user("u1"));
+    order.setOrderDetails(List.of(orderDetail(product, 2)));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+
+    orderService.updateOrderStatus("o1", OrderStatus.COMPLETED);
+
+    verify(productRepository, org.mockito.Mockito.never())
+        .incrementStock(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt());
+  }
+
+  @Test
+  void updateOrderStatus_doesNotRestoreStockTwice_whenCancelingAnAlreadyCanceledOrder() {
+    User admin = user("admin1");
+    admin.setRole(Roles.ADMIN);
+    when(memberIdentityHandlerService.requireAdmin()).thenReturn(admin);
+
+    Product product = product("p1", "Cashews", "50.00", 10);
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.CANCELED);
+    order.setUser(user("u1"));
+    order.setOrderDetails(List.of(orderDetail(product, 2)));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+
+    assertThatThrownBy(() -> orderService.updateOrderStatus("o1", OrderStatus.CANCELED))
+        .isInstanceOf(IllegalArgumentException.class);
+
+    verify(productRepository, org.mockito.Mockito.never())
+        .incrementStock(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt());
+  }
+
+  @Test
+  void updateOrderStatus_stillCancels_whenStockRestoreAffectsNoRows() {
+    User admin = user("admin1");
+    admin.setRole(Roles.ADMIN);
+    when(memberIdentityHandlerService.requireAdmin()).thenReturn(admin);
+
+    Product product = product("p1", "Cashews", "50.00", 8);
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.PENDING);
+    order.setUser(user("u1"));
+    order.setOrderDetails(List.of(orderDetail(product, 2)));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(productRepository.incrementStock("p1", 2)).thenReturn(0);
+
+    ResponseEntity<OrderResponse> response =
+        orderService.updateOrderStatus("o1", OrderStatus.CANCELED);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CANCELED);
+  }
+
+  @Test
+  void updateOrderStatus_cancelsCleanly_whenOrderHasNoLineItems() {
+    User admin = user("admin1");
+    admin.setRole(Roles.ADMIN);
+    when(memberIdentityHandlerService.requireAdmin()).thenReturn(admin);
+
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.PENDING);
+    order.setUser(user("u1"));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+
+    ResponseEntity<OrderResponse> response =
+        orderService.updateOrderStatus("o1", OrderStatus.CANCELED);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CANCELED);
+  }
+
+  @Test
+  void cancelOrder_cancelsAndRestoresStock_whenRequestedByOwner() {
+    User owner = user("u1");
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(owner);
+
+    Product product = product("p1", "Cashews", "50.00", 8);
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.PENDING);
+    order.setUser(owner);
+    order.setOrderDetails(List.of(orderDetail(product, 2)));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(productRepository.incrementStock("p1", 2)).thenReturn(1);
+
+    ResponseEntity<OrderResponse> response = orderService.cancelOrder("o1");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody().getOrderStatus()).isEqualTo(OrderStatus.CANCELED);
+    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CANCELED);
+    verify(productRepository).incrementStock("p1", 2);
+  }
+
+  @Test
+  void cancelOrder_throwsAccessDenied_whenRequestedByAnotherCustomer() {
+    User owner = user("u1");
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.PENDING);
+    order.setUser(owner);
+    order.setOrderDetails(List.of(orderDetail(product("p1", "Cashews", "50.00", 8), 2)));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user("u2"));
+
+    assertThatThrownBy(() -> orderService.cancelOrder("o1"))
+        .isInstanceOf(AccessDeniedException.class);
+
+    // Another customer's cancellation must not touch stock or the order's status.
+    verify(productRepository, org.mockito.Mockito.never())
+        .incrementStock(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt());
+    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.PENDING);
+  }
+
+  @Test
+  void cancelOrder_isAllowedForAdmin_onAnotherCustomersOrder() {
+    User admin = user("admin1");
+    admin.setRole(Roles.ADMIN);
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(admin);
+
+    Product product = product("p1", "Cashews", "50.00", 8);
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.PENDING);
+    order.setUser(user("u1"));
+    order.setOrderDetails(List.of(orderDetail(product, 2)));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(productRepository.incrementStock("p1", 2)).thenReturn(1);
+
+    ResponseEntity<OrderResponse> response = orderService.cancelOrder("o1");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody().getOrderStatus()).isEqualTo(OrderStatus.CANCELED);
+  }
+
+  @Test
+  void cancelOrder_throwsIllegalArgument_whenOrderAlreadyCompleted() {
+    User owner = user("u1");
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(owner);
+
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.COMPLETED);
+    order.setUser(owner);
+    order.setOrderDetails(List.of(orderDetail(product("p1", "Cashews", "50.00", 8), 2)));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+
+    assertThatThrownBy(() -> orderService.cancelOrder("o1"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid order status transition");
+
+    verify(productRepository, org.mockito.Mockito.never())
+        .incrementStock(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt());
+  }
+
+  @Test
+  void cancelOrder_throwsIllegalArgument_whenOrderAlreadyCanceled() {
+    User owner = user("u1");
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(owner);
+
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.CANCELED);
+    order.setUser(owner);
+    order.setOrderDetails(List.of(orderDetail(product("p1", "Cashews", "50.00", 8), 2)));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+
+    assertThatThrownBy(() -> orderService.cancelOrder("o1"))
+        .isInstanceOf(IllegalArgumentException.class);
+
+    // Guards against a second cancellation crediting the same stock twice.
+    verify(productRepository, org.mockito.Mockito.never())
+        .incrementStock(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt());
+  }
+
+  @Test
+  void cancelOrder_throwsNotFound_whenOrderMissing() {
+    when(orderRepository.findById("missing")).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> orderService.cancelOrder("missing"))
+        .isInstanceOf(EntityNotFoundException.class);
   }
 
   @Test

@@ -103,6 +103,13 @@ public class ErrorHandler {
         null);
   }
 
+  @ExceptionHandler(IllegalArgumentException.class)
+  public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
+      IllegalArgumentException exception) {
+    logger.warn("Illegal argument: {}", exception.getMessage());
+    return constructErrorResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), null);
+  }
+
   @ExceptionHandler(RuntimeException.class)
   public ResponseEntity<ErrorResponse> handleGenericRuntimeError(RuntimeException exception) {
     logger.error("Unhandled runtime exception", exception);

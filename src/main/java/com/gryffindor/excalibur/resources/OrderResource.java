@@ -48,6 +48,11 @@ public class OrderResource {
     return orderService.addOrder(order);
   }
 
+  @PostMapping("/orders/{id}/cancel")
+  public ResponseEntity<OrderResponse> cancelOrder(@PathVariable String id) {
+    return orderService.cancelOrder(id);
+  }
+
   @PatchMapping("/admin/orders/{id}/status")
   @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<OrderResponse> updateOrderStatus(
