@@ -199,7 +199,8 @@ class ProductServiceTest {
     assertThat(product.getImageUrl()).isEqualTo("https://example.com/wheat.png");
     assertThat(product.getHealthBenefits()).isNull();
     assertThat(product.getPrice()).isEqualByComparingTo(new BigDecimal("200.00"));
-    assertThat(product.getQty()).isEqualTo(10); // Qty is preserved, not overwritten by catalog updates
+    assertThat(product.getQty())
+        .isEqualTo(10); // Qty is preserved, not overwritten by catalog updates
     verify(productRepository).save(product);
   }
 

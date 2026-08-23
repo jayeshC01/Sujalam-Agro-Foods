@@ -243,9 +243,7 @@ class ProductResourceTest {
   @Test
   @DisplayName("Restock request with missing quantity is rejected")
   void restockProduct_missingQuantity_isRejected() throws Exception {
-    mockMvc
-        .perform(post("/admin/product/{id}/restock", "p1"))
-        .andExpect(status().isBadRequest());
+    mockMvc.perform(post("/admin/product/{id}/restock", "p1")).andExpect(status().isBadRequest());
 
     verify(productService, never()).restockProduct(any(), any(Integer.class));
   }
@@ -259,7 +257,8 @@ class ProductResourceTest {
     mockMvc
         .perform(post("/admin/product/{id}/restock", "p1").param("quantity", "0"))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value(containsString("Restock quantity must be greater than 0")));
+        .andExpect(
+            jsonPath("$.message").value(containsString("Restock quantity must be greater than 0")));
 
     verify(productService).restockProduct("p1", 0);
   }
