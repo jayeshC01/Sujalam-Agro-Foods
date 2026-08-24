@@ -33,6 +33,10 @@ public class ProductRequest {
   @Min(value = 0, message = "Quantity cannot be negative")
   private Integer qty;
 
+  @NotNull(message = "GST rate cannot be null")
+  @DecimalMin(value = "0.0", message = "GST rate cannot be negative")
+  private BigDecimal gstRate;
+
   public Product toProduct() {
     return Product.builder()
         .category(category)
@@ -42,6 +46,7 @@ public class ProductRequest {
         .healthBenefits(healthBenefits)
         .price(price)
         .qty(qty)
+        .gstRate(gstRate)
         .build();
   }
 }

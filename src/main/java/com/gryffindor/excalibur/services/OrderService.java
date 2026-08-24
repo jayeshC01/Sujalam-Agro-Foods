@@ -14,6 +14,7 @@ import com.gryffindor.excalibur.repository.OrderRepository;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
@@ -29,6 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class OrderService {
   private static final Logger log = LoggerFactory.getLogger(OrderService.class);
+
+  public static final BigDecimal STANDARD_DELIVERY_CHARGE = new BigDecimal("100.00");
+  public static final BigDecimal FREE_DELIVERY_THRESHOLD = new BigDecimal("500.00");
 
   private final OrderRepository orderRepository;
   private final ProductRepository productRepository;
@@ -92,7 +96,8 @@ public class OrderService {
     order.setUser(user);
     order.setShippingAddress(orderRequest.getShippingAddress());
 
-    BigDecimal orderTotal = BigDecimal.ZERO;
+    BigDecimal subTotal = BigDecimal.ZERO;
+    BigDecimal totalTax = BigDecimal.ZERO;
     List<OrderDetails> orderDetails = new ArrayList<>();
     for (OrderRequest.ProductRequest item : orderRequest.getProduct()) {
       Product product =
@@ -114,29 +119,56 @@ public class OrderService {
       }
 
       BigDecimal quantity = BigDecimal.valueOf(item.getOrderedQty());
-      BigDecimal subTotal = product.getPrice().multiply(quantity);
+      BigDecimal itemSubTotal = product.getPrice().multiply(quantity);
 
       OrderDetails orderDetail = new OrderDetails();
       orderDetail.setOrder(order);
       orderDetail.setProduct(product);
       orderDetail.setOrderedQty(item.getOrderedQty());
       orderDetail.setUnitPrice(product.getPrice());
-      orderDetail.setSubTotal(subTotal);
+      orderDetail.setSubTotal(itemSubTotal);
       orderDetails.add(orderDetail);
 
-      orderTotal = orderTotal.add(subTotal);
+      subTotal = subTotal.add(itemSubTotal);
+
+      // Reverse calculate inclusive GST
+      BigDecimal rate = product.getGstRate();
+      if (rate != null && rate.compareTo(BigDecimal.ZERO) > 0) {
+        BigDecimal divisor = BigDecimal.ONE.add(rate);
+        BigDecimal itemTax =
+            itemSubTotal
+                .multiply(rate)
+                .divide(divisor, 4, RoundingMode.HALF_UP)
+                .setScale(2, RoundingMode.HALF_UP);
+        totalTax = totalTax.add(itemTax);
+      }
     }
 
+    // Free delivery for orders >= ₹500, otherwise ₹100 standard delivery charge
+    BigDecimal deliveryCharge =
+        subTotal.compareTo(FREE_DELIVERY_THRESHOLD) >= 0
+            ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+            : STANDARD_DELIVERY_CHARGE.setScale(2, RoundingMode.HALF_UP);
+
+    // Product prices already include GST, so grandTotal = subTotal + deliveryCharge
+    BigDecimal grandTotal = subTotal.add(deliveryCharge).setScale(2, RoundingMode.HALF_UP);
+
     order.setOrderDetails(orderDetails);
-    order.setOrderTotal(orderTotal);
+    order.setSubTotal(subTotal.setScale(2, RoundingMode.HALF_UP));
+    order.setTaxAmount(totalTax.setScale(2, RoundingMode.HALF_UP));
+    order.setDeliveryCharge(deliveryCharge);
+    order.setGrandTotal(grandTotal);
 
     Order savedOrder = orderRepository.save(order);
     log.info(
-        "Order {} created for user {} - {} item(s), total {}",
+        "Order {} created for user {} - {} item(s), subTotal {}, tax {}, delivery {}, grandTotal {}",
         savedOrder.getOrderId(),
         user.getId(),
         orderDetails.size(),
-        orderTotal);
+        order.getSubTotal(),
+        order.getTaxAmount(),
+        order.getDeliveryCharge(),
+        order.getGrandTotal());
     emailService.sendOrderConfirmationEmail(savedOrder);
     return ResponseEntity.ok(OrderResponse.from(savedOrder));
   }

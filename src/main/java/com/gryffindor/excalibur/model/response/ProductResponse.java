@@ -20,6 +20,7 @@ public class ProductResponse {
   private String healthBenefits;
   private BigDecimal price;
   private Integer qty;
+  private BigDecimal gstRate;
 
   public static ProductResponse from(Product product) {
     return ProductResponse.builder()
@@ -31,6 +32,7 @@ public class ProductResponse {
         .healthBenefits(product.getHealthBenefits())
         .price(product.getPrice())
         .qty(product.getQty())
+        .gstRate(product.getGstRate())
         .build();
   }
 }

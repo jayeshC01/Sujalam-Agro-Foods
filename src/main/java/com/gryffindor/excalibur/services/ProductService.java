@@ -99,6 +99,8 @@ public class ProductService {
     existingProduct.setImageUrl(productRequest.getImageUrl());
     existingProduct.setHealthBenefits(productRequest.getHealthBenefits());
     existingProduct.setPrice(productRequest.getPrice());
+    existingProduct.setGstRate(productRequest.getGstRate());
+
     productRepository.save(existingProduct);
     log.info("Product {} '{}' updated", id, existingProduct.getName());
 

@@ -230,6 +230,7 @@ class OrderServiceTest {
     product.setName(name);
     product.setPrice(new BigDecimal(price));
     product.setQty(qty);
+    product.setGstRate(new BigDecimal("0.05"));
     return product;
   }
 
@@ -482,6 +483,7 @@ class OrderServiceTest {
     product.setName("Cashews");
     product.setPrice(new BigDecimal("50.00"));
     product.setQty(10);
+    product.setGstRate(new BigDecimal("0.05"));
     when(productRepository.findById("p1")).thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 2)).thenReturn(1);
 
@@ -496,7 +498,10 @@ class OrderServiceTest {
     OrderResponse body = response.getBody();
     assertThat(body.getOrderStatus()).isEqualTo(OrderStatus.PENDING);
     assertThat(body.getCustomer().getId()).isEqualTo("u1");
-    assertThat(body.getOrderTotal()).isEqualByComparingTo("100.00");
+    assertThat(body.getSubTotal()).isEqualByComparingTo("100.00");
+    assertThat(body.getTaxAmount()).isEqualByComparingTo("4.76");
+    assertThat(body.getDeliveryCharge()).isEqualByComparingTo("100.00");
+    assertThat(body.getGrandTotal()).isEqualByComparingTo("200.00");
     assertThat(body.getOrderDetails()).hasSize(1);
     assertThat(body.getOrderDetails().get(0).getProductId()).isEqualTo("p1");
     assertThat(body.getOrderDetails().get(0).getProductName()).isEqualTo("Cashews");
@@ -509,7 +514,10 @@ class OrderServiceTest {
                     o.getOrderStatus() == OrderStatus.PENDING
                         && o.getUser() == user
                         && o.getOrderDetails().size() == 1
-                        && o.getOrderTotal().compareTo(new BigDecimal("100.00")) == 0));
+                        && o.getSubTotal().compareTo(new BigDecimal("100.00")) == 0
+                        && o.getTaxAmount().compareTo(new BigDecimal("4.76")) == 0
+                        && o.getDeliveryCharge().compareTo(new BigDecimal("100.00")) == 0
+                        && o.getGrandTotal().compareTo(new BigDecimal("200.00")) == 0));
   }
 
   @Test
@@ -539,6 +547,7 @@ class OrderServiceTest {
     product.setName("Almonds");
     product.setPrice(new BigDecimal("50.00"));
     product.setQty(1);
+    product.setGstRate(new BigDecimal("0.05"));
     when(productRepository.findById("p1")).thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 2)).thenReturn(0);
 
@@ -564,6 +573,7 @@ class OrderServiceTest {
     product.setName("Almonds");
     product.setPrice(new BigDecimal("50.00"));
     product.setQty(2);
+    product.setGstRate(new BigDecimal("0.05"));
     when(productRepository.findById("p1")).thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 2)).thenReturn(1);
 
@@ -588,11 +598,13 @@ class OrderServiceTest {
     product1.setName("Cashews");
     product1.setPrice(new BigDecimal("50.00"));
     product1.setQty(5);
+    product1.setGstRate(new BigDecimal("0.05"));
     Product product2 = new Product();
     product2.setId("p2");
     product2.setName("Walnuts");
     product2.setPrice(new BigDecimal("20.00"));
     product2.setQty(5);
+    product2.setGstRate(new BigDecimal("0.05"));
     when(productRepository.findById("p1")).thenReturn(Optional.of(product1));
     when(productRepository.findById("p2")).thenReturn(Optional.of(product2));
     when(productRepository.decrementStock("p1", 1)).thenReturn(1);
@@ -610,13 +622,19 @@ class OrderServiceTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody().getOrderDetails()).hasSize(2);
-    assertThat(response.getBody().getOrderTotal()).isEqualByComparingTo("110.00");
+    assertThat(response.getBody().getSubTotal()).isEqualByComparingTo("110.00");
+    assertThat(response.getBody().getTaxAmount()).isEqualByComparingTo("5.24");
+    assertThat(response.getBody().getDeliveryCharge()).isEqualByComparingTo("100.00");
+    assertThat(response.getBody().getGrandTotal()).isEqualByComparingTo("210.00");
     verify(orderRepository)
         .save(
             argThat(
                 o ->
                     o.getOrderDetails().size() == 2
-                        && o.getOrderTotal().compareTo(new BigDecimal("110.00")) == 0));
+                        && o.getSubTotal().compareTo(new BigDecimal("110.00")) == 0
+                        && o.getTaxAmount().compareTo(new BigDecimal("5.24")) == 0
+                        && o.getDeliveryCharge().compareTo(new BigDecimal("100.00")) == 0
+                        && o.getGrandTotal().compareTo(new BigDecimal("210.00")) == 0));
   }
 
   @Test
@@ -629,11 +647,13 @@ class OrderServiceTest {
     product1.setName("Cashews");
     product1.setPrice(new BigDecimal("50.00"));
     product1.setQty(5);
+    product1.setGstRate(new BigDecimal("0.05"));
     Product product2 = new Product();
     product2.setId("p2");
     product2.setName("Walnuts");
     product2.setPrice(new BigDecimal("20.00"));
     product2.setQty(1);
+    product2.setGstRate(new BigDecimal("0.05"));
     when(productRepository.findById("p1")).thenReturn(Optional.of(product1));
     when(productRepository.findById("p2")).thenReturn(Optional.of(product2));
     when(productRepository.decrementStock("p1", 1)).thenReturn(1);
@@ -668,6 +688,7 @@ class OrderServiceTest {
     product.setName("Pistachios");
     product.setPrice(new BigDecimal("10.00"));
     product.setQty(2);
+    product.setGstRate(new BigDecimal("0.05"));
     when(productRepository.findById("p1")).thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 1)).thenReturn(1);
 
@@ -699,6 +720,7 @@ class OrderServiceTest {
     product.setName("Cardamom");
     product.setPrice(new BigDecimal("100.00"));
     product.setQty(2);
+    product.setGstRate(new BigDecimal("0.05"));
     when(productRepository.findById("p1")).thenReturn(Optional.of(product));
 
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
@@ -742,5 +764,63 @@ class OrderServiceTest {
     ResponseEntity<List<OrderResponse>> response = orderService.getOrdersForCustomer();
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+  }
+
+  @Test
+  void addOrder_appliesFreeDelivery_whenSubtotalReachesThreshold() {
+    User user = user("u1");
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
+
+    Product product = new Product();
+    product.setId("p1");
+    product.setName("Premium Saffron");
+    product.setPrice(new BigDecimal("500.00"));
+    product.setQty(5);
+    product.setGstRate(new BigDecimal("0.05"));
+    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.decrementStock("p1", 1)).thenReturn(1);
+
+    OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
+    item.setProductId("p1");
+    item.setOrderedQty(1);
+    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+
+    ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    OrderResponse body = response.getBody();
+    assertThat(body.getSubTotal()).isEqualByComparingTo("500.00");
+    assertThat(body.getTaxAmount()).isEqualByComparingTo("23.81"); // 5% inclusive of 500
+    assertThat(body.getDeliveryCharge()).isEqualByComparingTo("0.00"); // Free delivery
+    assertThat(body.getGrandTotal()).isEqualByComparingTo("500.00");
+  }
+
+  @Test
+  void addOrder_calculatesCustomGstRate_whenProductHasCustomGstRate() {
+    User user = user("u1");
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
+
+    Product product = new Product();
+    product.setId("p1");
+    product.setName("Processed Snacks");
+    product.setPrice(new BigDecimal("112.00")); // Inclusive of 12% GST
+    product.setQty(5);
+    product.setGstRate(new BigDecimal("0.12")); // 12% GST
+    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.decrementStock("p1", 1)).thenReturn(1);
+
+    OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
+    item.setProductId("p1");
+    item.setOrderedQty(1);
+    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+
+    ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    OrderResponse body = response.getBody();
+    assertThat(body.getSubTotal()).isEqualByComparingTo("112.00");
+    assertThat(body.getTaxAmount()).isEqualByComparingTo("12.00"); // 112 * (0.12 / 1.12) = 12.00
+    assertThat(body.getDeliveryCharge()).isEqualByComparingTo("100.00");
+    assertThat(body.getGrandTotal()).isEqualByComparingTo("212.00");
   }
 }
