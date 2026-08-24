@@ -30,6 +30,7 @@ public class ProductService {
     this.productRepository = productRepository;
   }
 
+  @Transactional(readOnly = true)
   public ResponseEntity<ProductResponse> findById(String id) {
     Product product =
         productRepository
@@ -38,6 +39,7 @@ public class ProductService {
     return ResponseEntity.ok(ProductResponse.from(product));
   }
 
+  @Transactional(readOnly = true)
   public ResponseEntity<PageResponse<ProductResponse>> findAllProduct(int page, int size) {
     PageRequest pageRequest = PageRequest.of(page, size);
     Page<Product> products = productRepository.findAll(pageRequest);
