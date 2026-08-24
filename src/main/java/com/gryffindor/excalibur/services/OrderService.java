@@ -6,6 +6,8 @@ import com.gryffindor.excalibur.model.db.Order;
 import com.gryffindor.excalibur.model.db.OrderDetails;
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.db.User;
+import com.gryffindor.excalibur.model.event.OrderPlacedEvent;
+import com.gryffindor.excalibur.model.event.OrderStatusUpdatedEvent;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
@@ -20,6 +22,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -37,18 +40,18 @@ public class OrderService {
   private final OrderRepository orderRepository;
   private final ProductRepository productRepository;
   private final MemberIdentityHandlerService memberIdentityHandlerService;
-  private final EmailService emailService;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Autowired
   OrderService(
       OrderRepository orderRepository,
       ProductRepository productRepository,
       MemberIdentityHandlerService memberIdentityHandlerService,
-      EmailService emailService) {
+      ApplicationEventPublisher applicationEventPublisher) {
     this.orderRepository = orderRepository;
     this.productRepository = productRepository;
     this.memberIdentityHandlerService = memberIdentityHandlerService;
-    this.emailService = emailService;
+    this.applicationEventPublisher = applicationEventPublisher;
   }
 
   @Transactional(readOnly = true)
@@ -169,7 +172,7 @@ public class OrderService {
         order.getTaxAmount(),
         order.getDeliveryCharge(),
         order.getGrandTotal());
-    emailService.sendOrderConfirmationEmail(savedOrder);
+    applicationEventPublisher.publishEvent(new OrderPlacedEvent(savedOrder));
     return ResponseEntity.ok(OrderResponse.from(savedOrder));
   }
 
@@ -235,6 +238,7 @@ public class OrderService {
     order.setOrderStatus(status);
     Order updatedOrder = orderRepository.save(order);
     log.info("Order {} status changed {} -> {}", order.getOrderId(), previousStatus, status);
+    applicationEventPublisher.publishEvent(new OrderStatusUpdatedEvent(updatedOrder, status));
     return updatedOrder;
   }
 

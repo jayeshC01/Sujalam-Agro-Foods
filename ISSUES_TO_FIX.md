@@ -11,54 +11,10 @@ and cross-referenced as `(was KNOWN_ISSUES #n)`.
 
 Shortest line to "a frontend can be built against this and a real customer can order":
 
-**P0-1 CORS → P0-2 env config → P0-3 Dockerfile/deploy → P0-4 admin bootstrap → P1-8 admin
-new-order notification → P1-11 delivery/GST in total → P3-31 OpenAPI docs.**
+**P0-1 CORS → P0-2 env config → P0-3 Dockerfile/deploy → P0-4 admin bootstrap → P3-31 OpenAPI docs.**
 
 P2 is a hardening pass for the week after launch, except **P2-18** and **P2-19**, which are a few
 lines each and should be folded into the P0 work.
-
----
-
-## Decision: Open-Session-In-View stays OFF
-
-`spring.jpa.open-in-view=false` is set deliberately. Do not turn it back on to make a
-`LazyInitializationException` go away — fix the read path instead. Reasons, in order of weight:
-
-1. **OSIV hides the N+1 (P2-24).** With it on, the per-order `getUser()` and per-item
-   `getProduct()` loads fire during Jackson serialization — after the service method returned,
-   outside any transaction, invisible to service-layer profiling. ~50 queries per order page and
-   nothing in the code looks wrong.
-2. **The database can't afford it.** The session lives for the whole request and every render-time
-   lazy load reaches back for a connection while serializing to a possibly-slow mobile client. On a
-   small `max_connections` (see P0-5), render-phase pool churn under concurrency is the most likely
-   way this app falls over.
-3. **It is a one-way door.** Once code assumes OSIV, turning it off means auditing every endpoint.
-   At ~1,800 lines the audit was one pass and three annotations. It only gets more expensive.
-4. **It keeps the API contract honest.** With OSIV on, returning an entity straight from a
-   controller accidentally works — so eventually someone does, `@JsonIgnore` starts appearing on
-   entities, and the JSON shape becomes the DB schema. The current DTOs are clean because the
-   environment does not allow the shortcut.
-
-### The two rules that make this cost nothing
-
-Deciding case-by-case ("does *this* method touch a lazy field?") is error-prone — the answer changes
-whenever someone edits a DTO. Apply these mechanically instead:
-
-1. **Every service method carries `@Transactional`** — `readOnly = true` for reads, plain for
-   writes. No analysis, no exceptions. Beyond lazy loading this buys one connection checkout instead
-   of N, and an atomic count+fetch on paginated queries. Four methods still violate this — see
-   P2-34.
-2. **Map to a DTO inside that method; never return an entity from a controller.** Already true
-   everywhere today — it is what makes rule 1 sufficient.
-
-### Audit status (as of the OSIV switch)
-
-All 14 endpoints were checked and are correct under `open-in-view=false`. `Order.orderDetails` is
-the only lazy association in the entire model; every other association is `@ManyToOne` (EAGER by
-default) or an `@Embeddable`. No entity, proxy, or persistent collection escapes into a response
-body — `OrderResponse.from()` copies into an immutable list inside the transaction, so Jackson only
-ever touches plain POJOs. This audit is **static**: it was not verified by running anything, because
-the suite cannot verify it (see P2-35).
 
 ---
 
@@ -95,24 +51,10 @@ a documented, versioned SQL seed.
 
 ## P1 — Holes in the core order flow
 
-### P1-8. The business is never notified of a new order
-`EmailService` only mails the customer. The shop owner has no way to learn an order came in short of
-polling `/orders`. For a COD food business this is an MVP blocker.
-**Fix:** send an admin notification alongside the customer confirmation, recipient from a property.
-
-### P1-9. No email on status change
-No "confirmed"/"shipped"/"cancelled" mail. The customer hears from you exactly once.
-
 ### P1-10. Order status model is too thin
 `PENDING → COMPLETED/CANCELED` only. No CONFIRMED/SHIPPED/OUT_FOR_DELIVERY, so there is nothing to
 render on an order-tracking screen.
 **Fix:** extend `OrderStatus` and its `canTransitionTo()` table.
-
-### P1-11. No delivery charge, GST/tax, or minimum order value
-`orderTotal` is the raw sum of line subtotals. An Indian food business needs GST and shipping on the
-order and on the invoice.
-**Fix:** add `subTotal` / `taxAmount` / `deliveryCharge` / `grandTotal` to `Order`, computed
-server-side; enforce a minimum order value at creation.
 
 ### P1-12. Payment is COD hardcoded in email copy
 `Order` has no `paymentMode`/`paymentStatus` field at all. Even if COD-only is the MVP decision,
@@ -127,17 +69,6 @@ queries.
 `RegisterUser` is write-once; no endpoint changes name or phone. Shipping address is re-typed on
 every order.
 **Fix:** `PUT /customer/me`, plus an `Address` book table keyed to the user.
-
-### P1-15. Order confirmation email is sent synchronously inside the transaction
-`OrderService.java:140` — Brevo's SMTP round-trip is held inside the DB transaction and sits in the
-user's response latency.
-**Fix:** publish a domain event, handle it `@Async` on `@TransactionalEventListener(AFTER_COMMIT)`.
-
-**Trap when you do this:** `EmailService.buildOrderConfirmationBody()` walks
-`order.getOrderDetails()` and `item.getProduct()`. That works today only because the call sits
-inside `addOrder`'s transaction. After the move the `Order` will be **detached**, and with OSIV off
-there is no safety net — it will throw `LazyInitializationException`. Pass a pre-built DTO into the
-async handler, not the entity.
 
 ### P1-16. No idempotency on order creation
 A double-tap on "Place Order" creates two orders and decrements stock twice.
@@ -195,24 +126,6 @@ The FK violation is caught by the same `DataIntegrityViolationException` handler
 names, which always returns *"A record with the same unique value already exists."*
 *(was KNOWN_ISSUES #3)* — superseded if P1-17 (soft delete) lands.
 
-### P2-24. N+1 queries on every order listing
-`OrderResponse.from()` triggers a SELECT per order for `.getUser()` and per line item for
-`.getProduct()` — both are `@ManyToOne` with no `fetch` set, so EAGER by default, with no
-`JOIN FETCH` behind them. A page of 10 orders with 3 items each is ~50 queries instead of 1–2.
-*(was KNOWN_ISSUES #5)*
-
-**More urgent now:** with OSIV off, all of it runs inside one short transaction on a single
-connection checkout, so the cost is concentrated rather than spread across the request.
-
-**Fix:** `@EntityGraph` (or `JOIN FETCH`) on `OrderRepository.findAll`, `findById`, and
-`getOrderByUserId`.
-
-**Why this is the highest-leverage item in P2:** it closes two problems at once. Once the order
-graph arrives fully loaded, there is *no lazy access left in the read path* — the
-`@Transactional(readOnly = true)` boundaries on the three order read methods stop being
-load-bearing and become belt-and-braces. Right now a single annotation is the only thing between
-a working endpoint and a `LazyInitializationException`. See the OSIV decision note above.
-
 ### P2-25. No schema migrations
 `ddl-auto=update` is the migration strategy. The first production schema change is a coin flip.
 **Fix:** Flyway, baselined against the current schema, then `ddl-auto=validate`.
@@ -232,22 +145,6 @@ Every other list endpoint returns an empty page. A customer with 500 orders pull
 the frontend has to special-case the shape.
 
 ### P2-30. `POST /orders` returns 200, not 201
-
-### P2-34. Four read methods still lack `@Transactional(readOnly = true)`
-`ProductService.findById`, `ProductService.findAllProduct`, `UserService.getCustomer`,
-`UserService.getAllCustomers`. They work today only because `User` and `Product` have no
-associations, so each repository call runs in its own session from `SimpleJpaRepository` and the
-detached entities are fully materialized. Nothing breaks — but it violates rule 1 of the OSIV
-decision above, and it costs:
-
-- `getCustomer` does two round trips (`getLoggedInUser()`, then `findById`) in **two separate
-  sessions and connection checkouts**.
-- `getAllCustomers` and `findAllProduct` run the count query and the content query in **two separate
-  transactions**, so `totalElements` can disagree with `content` if a row is inserted between them.
-
-**Fix:** add `@Transactional(readOnly = true)` to all four. Also lets the JDBC driver flag the
-connection read-only. ~5 minutes, and it establishes the rule uniformly so the question stops
-coming up.
 
 ### P2-36. Owner-or-admin authorization block duplicated in `OrderService`
 `getOrderById` (`OrderService.java:75-78`) and `cancelOrder` (`OrderService.java:175-178`) contain a

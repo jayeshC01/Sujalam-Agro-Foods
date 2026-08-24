@@ -2,6 +2,7 @@ package com.gryffindor.excalibur.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -13,6 +14,8 @@ import com.gryffindor.excalibur.model.db.Order;
 import com.gryffindor.excalibur.model.db.OrderDetails;
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.db.User;
+import com.gryffindor.excalibur.model.event.OrderPlacedEvent;
+import com.gryffindor.excalibur.model.event.OrderStatusUpdatedEvent;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
@@ -28,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -44,7 +48,7 @@ class OrderServiceTest {
 
   @Mock private MemberIdentityHandlerService memberIdentityHandlerService;
 
-  @Mock private EmailService emailService;
+  @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   private OrderService orderService;
 
@@ -52,7 +56,10 @@ class OrderServiceTest {
   void setUp() {
     orderService =
         new OrderService(
-            orderRepository, productRepository, memberIdentityHandlerService, emailService);
+            orderRepository,
+            productRepository,
+            memberIdentityHandlerService,
+            applicationEventPublisher);
     // addOrder() reads the saved order's fields back to build the response DTO; echo the
     // argument back the way a real save() would return the persisted (same) entity.
     org.mockito.Mockito.lenient()
@@ -255,6 +262,7 @@ class OrderServiceTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody().getOrderStatus()).isEqualTo(OrderStatus.CANCELED);
     verify(productRepository).incrementStock("p1", 2);
+    verify(applicationEventPublisher).publishEvent(any(OrderStatusUpdatedEvent.class));
   }
 
   @Test
@@ -278,6 +286,7 @@ class OrderServiceTest {
 
     verify(productRepository).incrementStock("p1", 1);
     verify(productRepository).incrementStock("p2", 3);
+    verify(applicationEventPublisher).publishEvent(any(OrderStatusUpdatedEvent.class));
   }
 
   @Test
@@ -298,6 +307,7 @@ class OrderServiceTest {
 
     verify(productRepository, org.mockito.Mockito.never())
         .incrementStock(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt());
+    verify(applicationEventPublisher).publishEvent(any(OrderStatusUpdatedEvent.class));
   }
 
   @Test
@@ -518,6 +528,7 @@ class OrderServiceTest {
                         && o.getTaxAmount().compareTo(new BigDecimal("4.76")) == 0
                         && o.getDeliveryCharge().compareTo(new BigDecimal("100.00")) == 0
                         && o.getGrandTotal().compareTo(new BigDecimal("200.00")) == 0));
+    verify(applicationEventPublisher).publishEvent(any(OrderPlacedEvent.class));
   }
 
   @Test
