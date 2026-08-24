@@ -70,6 +70,7 @@ public class UserService {
     return new ResponseEntity<>("Registered Successfully", HttpStatus.OK);
   }
 
+  @Transactional(readOnly = true)
   public ResponseEntity<CustomerResponse> getCustomer(final String id) {
     User currentUser = memberIdentityHandlerService.getLoggedInUser();
     if (currentUser.getRole() != Roles.ADMIN && !currentUser.getId().equals(id)) {
@@ -84,6 +85,7 @@ public class UserService {
     return ResponseEntity.ok(CustomerResponse.from(user));
   }
 
+  @Transactional(readOnly = true)
   public ResponseEntity<PageResponse<CustomerResponse>> getAllCustomers(int page, int size) {
     PageRequest pageRequest = PageRequest.of(page, size);
     Page<User> users = userRepository.findAll(pageRequest);

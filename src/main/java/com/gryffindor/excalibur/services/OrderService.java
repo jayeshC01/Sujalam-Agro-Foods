@@ -47,6 +47,7 @@ public class OrderService {
     this.emailService = emailService;
   }
 
+  @Transactional(readOnly = true)
   public ResponseEntity<PageResponse<OrderResponse>> getAllOrders(int page, int size) {
     PageRequest pageRequest = PageRequest.of(page, size);
     Page<Order> orders = orderRepository.findAll(pageRequest);
@@ -66,6 +67,7 @@ public class OrderService {
     return ResponseEntity.ok(pageResponse);
   }
 
+  @Transactional(readOnly = true)
   public ResponseEntity<OrderResponse> getOrderById(String id) {
     Order order =
         orderRepository
@@ -139,6 +141,7 @@ public class OrderService {
     return ResponseEntity.ok(OrderResponse.from(savedOrder));
   }
 
+  @Transactional(readOnly = true)
   public ResponseEntity<List<OrderResponse>> getOrdersForCustomer() {
     List<Order> orders =
         orderRepository.getOrderByUserId(memberIdentityHandlerService.getLoggedInMemberID());
