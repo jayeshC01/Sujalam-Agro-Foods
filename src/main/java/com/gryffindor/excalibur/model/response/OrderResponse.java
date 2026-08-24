@@ -18,7 +18,10 @@ public class OrderResponse {
   private String id;
   private OrderStatus orderStatus;
   private CustomerResponse customer;
-  private BigDecimal orderTotal;
+  private BigDecimal subTotal;
+  private BigDecimal taxAmount;
+  private BigDecimal deliveryCharge;
+  private BigDecimal grandTotal;
   private Address shippingAddress;
   private List<OrderDetailsResponse> orderDetails;
 
@@ -27,7 +30,10 @@ public class OrderResponse {
         .id(order.getOrderId())
         .orderStatus(order.getOrderStatus())
         .customer(CustomerResponse.from(order.getUser()))
-        .orderTotal(order.getOrderTotal())
+        .subTotal(order.getSubTotal())
+        .taxAmount(order.getTaxAmount())
+        .deliveryCharge(order.getDeliveryCharge())
+        .grandTotal(order.getGrandTotal())
         .shippingAddress(order.getShippingAddress())
         .orderDetails(
             order.getOrderDetails() == null

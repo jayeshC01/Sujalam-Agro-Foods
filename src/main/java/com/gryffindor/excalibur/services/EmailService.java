@@ -87,7 +87,7 @@ public class EmailService {
         + itemRows
         + "</table>"
         + "<p><b>Order Total: ₹"
-        + order.getOrderTotal()
+        + order.getGrandTotal()
         + "</b></p>"
         + "<p><b>Shipping Address:</b><br>"
         + address.getRecipientName()

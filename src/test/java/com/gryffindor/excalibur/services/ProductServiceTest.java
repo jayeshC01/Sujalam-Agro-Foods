@@ -51,6 +51,7 @@ class ProductServiceTest {
     product.setHealthBenefits("Good source of energy");
     product.setPrice(new BigDecimal("100.00"));
     product.setQty(10);
+    product.setGstRate(new BigDecimal("0.05"));
   }
 
   // ---------- findById ----------
@@ -73,6 +74,7 @@ class ProductServiceTest {
     assertThat(body.getHealthBenefits()).isEqualTo("Good source of energy");
     assertThat(body.getPrice()).isEqualByComparingTo(new BigDecimal("100.00"));
     assertThat(body.getQty()).isEqualTo(10);
+    assertThat(body.getGstRate()).isEqualByComparingTo(new BigDecimal("0.05"));
   }
 
   @Test
@@ -96,6 +98,7 @@ class ProductServiceTest {
     second.setName("Soap");
     second.setPrice(new BigDecimal("25.00"));
     second.setQty(50);
+    second.setGstRate(new BigDecimal("0.18"));
 
     Page<Product> page = new PageImpl<>(List.of(product, second), PageRequest.of(0, 10), 2);
     when(productRepository.findAll(PageRequest.of(0, 10))).thenReturn(page);
@@ -138,6 +141,7 @@ class ProductServiceTest {
     request.setHealthBenefits("Good source of energy");
     request.setPrice(new BigDecimal("100.00"));
     request.setQty(10);
+    request.setGstRate(new BigDecimal("0.05"));
     return request;
   }
 
@@ -160,6 +164,7 @@ class ProductServiceTest {
     assertThat(saved.getHealthBenefits()).isEqualTo("Good source of energy");
     assertThat(saved.getPrice()).isEqualByComparingTo(new BigDecimal("100.00"));
     assertThat(saved.getQty()).isEqualTo(10);
+    assertThat(saved.getGstRate()).isEqualByComparingTo(new BigDecimal("0.05"));
   }
 
   @Test
@@ -187,6 +192,7 @@ class ProductServiceTest {
     update.setHealthBenefits(null);
     update.setPrice(new BigDecimal("200.00"));
     update.setQty(20);
+    update.setGstRate(new BigDecimal("0.12"));
 
     ResponseEntity<String> response = productService.updateProductById("p1", update);
 
@@ -199,6 +205,7 @@ class ProductServiceTest {
     assertThat(product.getImageUrl()).isEqualTo("https://example.com/wheat.png");
     assertThat(product.getHealthBenefits()).isNull();
     assertThat(product.getPrice()).isEqualByComparingTo(new BigDecimal("200.00"));
+    assertThat(product.getGstRate()).isEqualByComparingTo(new BigDecimal("0.12"));
     assertThat(product.getQty())
         .isEqualTo(10); // Qty is preserved, not overwritten by catalog updates
     verify(productRepository).save(product);

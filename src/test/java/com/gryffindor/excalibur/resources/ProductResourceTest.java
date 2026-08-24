@@ -54,6 +54,7 @@ class ProductResourceTest {
     product.setPrice(new BigDecimal("100.00"));
     product.setQty(5);
     product.setCategory(Product.Category.EDIBLE);
+    product.setGstRate(new BigDecimal("0.05"));
     return product;
   }
 
@@ -223,6 +224,40 @@ class ProductResourceTest {
                 .content(objectMapper.writeValueAsString(product)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.details").value(containsString("qty")));
+
+    verify(productService, never()).addProduct(any());
+  }
+
+  @Test
+  @DisplayName("Request with missing GST rate is rejected")
+  void missingGstRate_isRejected() throws Exception {
+    ProductRequest product = validProduct();
+    product.setGstRate(null);
+
+    mockMvc
+        .perform(
+            post("/admin/product")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(product)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.details").value(containsString("gstRate")));
+
+    verify(productService, never()).addProduct(any());
+  }
+
+  @Test
+  @DisplayName("Request with negative GST rate is rejected")
+  void negativeGstRate_isRejected() throws Exception {
+    ProductRequest product = validProduct();
+    product.setGstRate(new BigDecimal("-0.05"));
+
+    mockMvc
+        .perform(
+            post("/admin/product")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(product)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.details").value(containsString("gstRate")));
 
     verify(productService, never()).addProduct(any());
   }

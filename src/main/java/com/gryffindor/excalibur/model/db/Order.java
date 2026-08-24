@@ -37,10 +37,19 @@ public class Order extends AuditStamp implements Serializable {
   @JoinColumn(name = "customer_id", referencedColumnName = "id", nullable = false)
   private User user;
 
-  @Column(name = "order_total", nullable = false, precision = 12, scale = 2)
-  @NotNull(message = "Order total cannot be null")
-  @DecimalMin(value = "0.0", message = "Order total cannot be negative")
-  private BigDecimal orderTotal;
+  @Column(name = "sub_total", precision = 12, scale = 2)
+  private BigDecimal subTotal;
+
+  @Column(name = "tax_amount", precision = 12, scale = 2)
+  private BigDecimal taxAmount;
+
+  @Column(name = "delivery_charge", precision = 12, scale = 2)
+  private BigDecimal deliveryCharge;
+
+  @Column(name = "grand_total", nullable = false, precision = 12, scale = 2)
+  @NotNull(message = "Grand total cannot be null")
+  @DecimalMin(value = "0.0", message = "Grand total cannot be negative")
+  private BigDecimal grandTotal;
 
   @Embedded
   @NotNull(message = "Shipping address is required")

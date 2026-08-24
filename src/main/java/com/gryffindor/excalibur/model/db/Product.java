@@ -56,4 +56,8 @@ public class Product extends AuditStamp implements Serializable {
   @Column(name = "quantity", nullable = false)
   @Check(name = "chk_products_quantity_non_negative", constraints = "quantity >= 0")
   private Integer qty;
+
+  @Column(name = "gst_rate", nullable = false, precision = 5, scale = 4)
+  @Check(name = "chk_products_gst_rate_non_negative", constraints = "gst_rate >= 0")
+  private BigDecimal gstRate;
 }
