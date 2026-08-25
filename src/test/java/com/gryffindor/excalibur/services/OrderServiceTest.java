@@ -7,6 +7,7 @@ import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gryffindor.excalibur.model.constants.OrderStatus;
 import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.Address;
@@ -50,6 +51,9 @@ class OrderServiceTest {
 
   @Mock private ApplicationEventPublisher applicationEventPublisher;
 
+  private ObjectMapper objectMapper = new ObjectMapper();
+  private com.gryffindor.excalibur.common.IdempotencyHelper idempotencyHelper =
+      new com.gryffindor.excalibur.common.IdempotencyHelper(objectMapper);
   private OrderService orderService;
 
   @BeforeEach
@@ -59,7 +63,8 @@ class OrderServiceTest {
             orderRepository,
             productRepository,
             memberIdentityHandlerService,
-            applicationEventPublisher);
+            applicationEventPublisher,
+            idempotencyHelper);
     // addOrder() reads the saved order's fields back to build the response DTO; echo the
     // argument back the way a real save() would return the persisted (same) entity.
     org.mockito.Mockito.lenient()
@@ -502,7 +507,7 @@ class OrderServiceTest {
     item.setOrderedQty(2);
     OrderRequest orderRequest = new OrderRequest(List.of(item), address());
 
-    ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest);
+    ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest, "test-idem-key-1");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     OrderResponse body = response.getBody();
@@ -542,7 +547,7 @@ class OrderServiceTest {
     item.setOrderedQty(1);
     OrderRequest orderRequest = new OrderRequest(List.of(item), address());
 
-    assertThatThrownBy(() -> orderService.addOrder(orderRequest))
+    assertThatThrownBy(() -> orderService.addOrder(orderRequest, "test-idem-missing"))
         .isInstanceOf(EntityNotFoundException.class);
 
     verify(orderRepository, org.mockito.Mockito.never()).save(org.mockito.Mockito.any());
@@ -567,7 +572,7 @@ class OrderServiceTest {
     item.setOrderedQty(2);
     OrderRequest orderRequest = new OrderRequest(List.of(item), address());
 
-    assertThatThrownBy(() -> orderService.addOrder(orderRequest))
+    assertThatThrownBy(() -> orderService.addOrder(orderRequest, "test-idem-insufficient"))
         .isInstanceOf(InsufficientStockException.class)
         .hasMessageContaining("Insufficient stock");
 
@@ -593,7 +598,7 @@ class OrderServiceTest {
     item.setOrderedQty(2);
     OrderRequest orderRequest = new OrderRequest(List.of(item), address());
 
-    ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest);
+    ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest, "test-idem-exact");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     verify(productRepository).decrementStock("p1", 2);
@@ -629,7 +634,8 @@ class OrderServiceTest {
     item2.setOrderedQty(3);
     OrderRequest orderRequest = new OrderRequest(List.of(item1, item2), address());
 
-    ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest);
+    ResponseEntity<OrderResponse> response =
+        orderService.addOrder(orderRequest, "test-idem-multi-1");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody().getOrderDetails()).hasSize(2);
@@ -678,7 +684,7 @@ class OrderServiceTest {
     item2.setOrderedQty(3);
     OrderRequest orderRequest = new OrderRequest(List.of(item1, item2), address());
 
-    assertThatThrownBy(() -> orderService.addOrder(orderRequest))
+    assertThatThrownBy(() -> orderService.addOrder(orderRequest, "test-idem-later-fail"))
         .isInstanceOf(InsufficientStockException.class);
 
     // The whole order must be rejected (relies on @Transactional rollback for product1's
@@ -711,7 +717,8 @@ class OrderServiceTest {
     item2.setOrderedQty(1);
     OrderRequest orderRequest = new OrderRequest(List.of(item1, item2), address());
 
-    ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest);
+    ResponseEntity<OrderResponse> response =
+        orderService.addOrder(orderRequest, "test-idem-dup-item");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     verify(productRepository, org.mockito.Mockito.times(2)).decrementStock("p1", 1);
@@ -742,12 +749,13 @@ class OrderServiceTest {
 
     when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(customerA);
     when(productRepository.decrementStock("p1", 2)).thenReturn(1);
-    ResponseEntity<OrderResponse> responseA = orderService.addOrder(orderRequestA);
+    ResponseEntity<OrderResponse> responseA =
+        orderService.addOrder(orderRequestA, "test-idem-cust-a");
     assertThat(responseA.getStatusCode()).isEqualTo(HttpStatus.OK);
 
     when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(customerB);
     when(productRepository.decrementStock("p1", 2)).thenReturn(0);
-    assertThatThrownBy(() -> orderService.addOrder(orderRequestB))
+    assertThatThrownBy(() -> orderService.addOrder(orderRequestB, "test-idem-cust-b"))
         .isInstanceOf(InsufficientStockException.class)
         .hasMessageContaining("Insufficient stock");
   }
@@ -796,7 +804,8 @@ class OrderServiceTest {
     item.setOrderedQty(1);
     OrderRequest orderRequest = new OrderRequest(List.of(item), address());
 
-    ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest);
+    ResponseEntity<OrderResponse> response =
+        orderService.addOrder(orderRequest, "test-idem-free-del");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     OrderResponse body = response.getBody();
@@ -825,7 +834,8 @@ class OrderServiceTest {
     item.setOrderedQty(1);
     OrderRequest orderRequest = new OrderRequest(List.of(item), address());
 
-    ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest);
+    ResponseEntity<OrderResponse> response =
+        orderService.addOrder(orderRequest, "test-idem-gst-rate");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     OrderResponse body = response.getBody();
@@ -833,5 +843,171 @@ class OrderServiceTest {
     assertThat(body.getTaxAmount()).isEqualByComparingTo("12.00"); // 112 * (0.12 / 1.12) = 12.00
     assertThat(body.getDeliveryCharge()).isEqualByComparingTo("100.00");
     assertThat(body.getGrandTotal()).isEqualByComparingTo("212.00");
+  }
+
+  @Test
+  void addOrder_withExistingIdempotencyKey_replaysExistingOrderWithoutDeductingStock() {
+    User user = user("u1");
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
+
+    Order existingOrder = new Order();
+    existingOrder.setOrderId("ord-existing-1");
+    existingOrder.setUser(user);
+    existingOrder.setOrderStatus(OrderStatus.PENDING);
+    existingOrder.setSubTotal(new BigDecimal("100.00"));
+    existingOrder.setTaxAmount(new BigDecimal("4.76"));
+    existingOrder.setDeliveryCharge(new BigDecimal("100.00"));
+    existingOrder.setGrandTotal(new BigDecimal("200.00"));
+    existingOrder.setIdempotencyKey("idem-key-1");
+
+    OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
+    item.setProductId("p1");
+    item.setOrderedQty(1);
+    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+
+    // Set matching request hash on existing order
+    try {
+      String json = objectMapper.writeValueAsString(orderRequest);
+      java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+      byte[] hash = digest.digest(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      existingOrder.setRequestHash(java.util.HexFormat.of().formatHex(hash));
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    when(orderRepository.findByUserIdAndIdempotencyKey("u1", "idem-key-1"))
+        .thenReturn(Optional.of(existingOrder));
+
+    ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest, "idem-key-1");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody().getId()).isEqualTo("ord-existing-1");
+
+    // Stock was NEVER deducted and new order was NOT saved
+    verify(productRepository, org.mockito.Mockito.never())
+        .decrementStock(
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyInt());
+    verify(orderRepository, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  void addOrder_withExistingIdempotencyKeyAndDifferentPayload_throwsPayloadMismatchException() {
+    User user = user("u1");
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
+
+    Order existingOrder = new Order();
+    existingOrder.setOrderId("ord-existing-1");
+    existingOrder.setUser(user);
+    existingOrder.setIdempotencyKey("idem-key-1");
+    existingOrder.setRequestHash("different-original-hash-12345");
+
+    when(orderRepository.findByUserIdAndIdempotencyKey("u1", "idem-key-1"))
+        .thenReturn(Optional.of(existingOrder));
+
+    OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
+    item.setProductId("p1");
+    item.setOrderedQty(1);
+    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> orderService.addOrder(orderRequest, "idem-key-1"))
+        .isInstanceOf(
+            com.gryffindor.excalibur.model.exception.IdempotencyPayloadMismatchException.class)
+        .hasMessageContaining("previously used with a different request payload");
+  }
+
+  @Test
+  void addOrder_handlesConcurrentInsertRaceCondition_returnsWinnerOrder() {
+    User user = user("u1");
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
+
+    Product product = product("p1", "Cashews", "100.00", 5);
+    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.decrementStock("p1", 1)).thenReturn(1);
+
+    Order winnerOrder = new Order();
+    winnerOrder.setOrderId("ord-winner-99");
+    winnerOrder.setUser(user);
+    winnerOrder.setOrderStatus(OrderStatus.PENDING);
+    winnerOrder.setSubTotal(new BigDecimal("100.00"));
+    winnerOrder.setTaxAmount(new BigDecimal("4.76"));
+    winnerOrder.setDeliveryCharge(new BigDecimal("100.00"));
+    winnerOrder.setGrandTotal(new BigDecimal("200.00"));
+    winnerOrder.setIdempotencyKey("race-key-1");
+
+    when(orderRepository.findByUserIdAndIdempotencyKey("u1", "race-key-1"))
+        .thenReturn(Optional.empty()) // first check: not found
+        .thenReturn(Optional.of(winnerOrder)); // second check after race: found winner order
+
+    when(orderRepository.save(org.mockito.ArgumentMatchers.any()))
+        .thenThrow(
+            new org.springframework.dao.DataIntegrityViolationException(
+                "Duplicate key uk_orders_user_idempotency"));
+
+    OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
+    item.setProductId("p1");
+    item.setOrderedQty(1);
+    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+
+    ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest, "race-key-1");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody().getId()).isEqualTo("ord-winner-99");
+  }
+
+  @Test
+  void addOrder_allowsSameIdempotencyKey_forDifferentUsers() {
+    User user1 = user("u1");
+    User user2 = user("u2");
+
+    Product product = product("p1", "Cashews", "100.00", 10);
+    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.decrementStock("p1", 1)).thenReturn(1);
+
+    OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
+    item.setProductId("p1");
+    item.setOrderedQty(1);
+    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+
+    // User 1 places order with key-shared
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user1);
+    when(orderRepository.findByUserIdAndIdempotencyKey("u1", "key-shared"))
+        .thenReturn(Optional.empty());
+    ResponseEntity<OrderResponse> response1 = orderService.addOrder(orderRequest, "key-shared");
+    assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    // User 2 places order with SAME key-shared without being blocked
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user2);
+    when(orderRepository.findByUserIdAndIdempotencyKey("u2", "key-shared"))
+        .thenReturn(Optional.empty());
+    ResponseEntity<OrderResponse> response2 = orderService.addOrder(orderRequest, "key-shared");
+    assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    verify(orderRepository).findByUserIdAndIdempotencyKey("u1", "key-shared");
+    verify(orderRepository).findByUserIdAndIdempotencyKey("u2", "key-shared");
+  }
+
+  @Test
+  void addOrder_trimsLeadingAndTrailingWhitespaceFromKey() {
+    User user = user("u1");
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
+
+    Product product = product("p1", "Cashews", "100.00", 5);
+    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.decrementStock("p1", 1)).thenReturn(1);
+
+    OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
+    item.setProductId("p1");
+    item.setOrderedQty(1);
+    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+
+    when(orderRepository.findByUserIdAndIdempotencyKey("u1", "key-trimmed"))
+        .thenReturn(Optional.empty());
+
+    ResponseEntity<OrderResponse> response =
+        orderService.addOrder(orderRequest, "   key-trimmed   ");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    verify(orderRepository).save(argThat(o -> "key-trimmed".equals(o.getIdempotencyKey())));
   }
 }
