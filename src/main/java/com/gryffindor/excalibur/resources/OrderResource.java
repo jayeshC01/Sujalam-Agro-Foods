@@ -44,8 +44,10 @@ public class OrderResource {
   }
 
   @PostMapping("/orders")
-  public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody OrderRequest order) {
-    return orderService.addOrder(order);
+  public ResponseEntity<OrderResponse> createOrder(
+      @RequestHeader(value = "Idempotency-Key", required = true) String idempotencyKey,
+      @Valid @RequestBody OrderRequest order) {
+    return orderService.addOrder(order, idempotencyKey);
   }
 
   @PostMapping("/orders/{id}/cancel")

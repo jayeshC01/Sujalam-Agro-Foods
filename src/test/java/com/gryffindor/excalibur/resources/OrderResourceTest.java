@@ -105,20 +105,38 @@ class OrderResourceTest {
   }
 
   @Test
-  @DisplayName("valid order request is accepted")
-  void createOrder_returnsOk() throws Exception {
+  @DisplayName("valid order request with Idempotency-Key header returns ok")
+  void createOrder_withHeader_passesIdempotencyKey() throws Exception {
     OrderRequest orderRequest = new OrderRequest(List.of(validItem()), validAddress());
 
-    when(orderService.addOrder(any())).thenReturn(ResponseEntity.ok(sampleOrderResponse()));
+    when(orderService.addOrder(any(), org.mockito.ArgumentMatchers.eq("key-xyz-123")))
+        .thenReturn(ResponseEntity.ok(sampleOrderResponse()));
+
+    mockMvc
+        .perform(
+            post("/orders")
+                .header("Idempotency-Key", "key-xyz-123")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(orderRequest)))
+        .andExpect(status().isOk());
+
+    verify(orderService).addOrder(any(), org.mockito.ArgumentMatchers.eq("key-xyz-123"));
+  }
+
+  @Test
+  @DisplayName("order request without Idempotency-Key header returns 400 Bad Request")
+  void createOrder_withoutHeader_returnsBadRequest() throws Exception {
+    OrderRequest orderRequest = new OrderRequest(List.of(validItem()), validAddress());
 
     mockMvc
         .perform(
             post("/orders")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(orderRequest)))
-        .andExpect(status().isOk());
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message", containsString("Idempotency-Key")));
 
-    verify(orderService).addOrder(any());
+    verify(orderService, never()).addOrder(any(), any());
   }
 
   @Test
@@ -169,12 +187,13 @@ class OrderResourceTest {
     mockMvc
         .perform(
             post("/orders")
+                .header("Idempotency-Key", "test-key-123")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(orderRequest)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.details").value(containsString("product")));
 
-    verify(orderService, never()).addOrder(any());
+    verify(orderService, never()).addOrder(any(), any());
   }
 
   @Test
@@ -187,12 +206,13 @@ class OrderResourceTest {
     mockMvc
         .perform(
             post("/orders")
+                .header("Idempotency-Key", "test-key-123")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(orderRequest)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.details").value(containsString("productId")));
 
-    verify(orderService, never()).addOrder(any());
+    verify(orderService, never()).addOrder(any(), any());
   }
 
   @Test
@@ -205,12 +225,13 @@ class OrderResourceTest {
     mockMvc
         .perform(
             post("/orders")
+                .header("Idempotency-Key", "test-key-123")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(orderRequest)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.details").value(containsString("quantity")));
 
-    verify(orderService, never()).addOrder(any());
+    verify(orderService, never()).addOrder(any(), any());
   }
 
   @Test
@@ -221,12 +242,13 @@ class OrderResourceTest {
     mockMvc
         .perform(
             post("/orders")
+                .header("Idempotency-Key", "test-key-123")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(orderRequest)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.details").value(containsString("shippingAddress")));
 
-    verify(orderService, never()).addOrder(any());
+    verify(orderService, never()).addOrder(any(), any());
   }
 
   @Test
@@ -239,11 +261,12 @@ class OrderResourceTest {
     mockMvc
         .perform(
             post("/orders")
+                .header("Idempotency-Key", "test-key-123")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(orderRequest)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.details").value(containsString("recipientName")));
 
-    verify(orderService, never()).addOrder(any());
+    verify(orderService, never()).addOrder(any(), any());
   }
 }

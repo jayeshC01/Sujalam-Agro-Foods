@@ -80,6 +80,14 @@ public class ErrorHandler {
         exception.getMessage());
   }
 
+  @ExceptionHandler(
+      com.gryffindor.excalibur.model.exception.IdempotencyPayloadMismatchException.class)
+  public ResponseEntity<ErrorResponse> handleIdempotencyPayloadMismatchException(
+      com.gryffindor.excalibur.model.exception.IdempotencyPayloadMismatchException exception) {
+    logger.warn("Idempotency payload mismatch: {}", exception.getMessage());
+    return constructErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY, exception.getMessage(), null);
+  }
+
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(
       MethodArgumentNotValidException exception) {
@@ -111,6 +119,16 @@ public class ErrorHandler {
     return constructErrorResponse(
         HttpStatus.BAD_REQUEST,
         "Required request parameter '" + exception.getParameterName() + "' is missing",
+        null);
+  }
+
+  @ExceptionHandler(org.springframework.web.bind.MissingRequestHeaderException.class)
+  public ResponseEntity<ErrorResponse> handleMissingRequestHeaderException(
+      org.springframework.web.bind.MissingRequestHeaderException exception) {
+    logger.warn("Missing request header: {}", exception.getHeaderName());
+    return constructErrorResponse(
+        HttpStatus.BAD_REQUEST,
+        "Required request header '" + exception.getHeaderName() + "' is missing",
         null);
   }
 

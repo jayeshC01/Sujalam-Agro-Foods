@@ -17,8 +17,14 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 @Table(
     name = "orders",
+    uniqueConstraints = {
+      @UniqueConstraint(
+          name = "uk_orders_user_idempotency",
+          columnNames = {"customer_id", "idempotency_key"})
+    },
     indexes = {
       @Index(name = "idx_orders_customer_id", columnList = "customer_id"),
+      @Index(name = "idx_orders_idempotency_key", columnList = "idempotency_key"),
       @Index(name = "idx_orders_status", columnList = "order_status"),
       @Index(name = "idx_orders_created_at", columnList = "created_at")
     })
@@ -28,6 +34,12 @@ public class Order extends AuditStamp implements Serializable {
   @GeneratedValue(strategy = GenerationType.UUID)
   @Column(name = "id")
   private String orderId;
+
+  @Column(name = "idempotency_key", nullable = false, length = 128)
+  private String idempotencyKey;
+
+  @Column(name = "request_hash", nullable = false, length = 64)
+  private String requestHash;
 
   @Column(name = "order_status", nullable = false)
   @Enumerated(EnumType.STRING)

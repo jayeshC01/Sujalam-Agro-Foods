@@ -22,4 +22,7 @@ public interface OrderRepository extends JpaRepository<Order, String> {
 
   @EntityGraph(attributePaths = {"user", "orderDetails", "orderDetails.product"})
   List<Order> getOrderByUserId(String customerId);
+
+  @EntityGraph(attributePaths = {"user", "orderDetails", "orderDetails.product"})
+  Optional<Order> findByUserIdAndIdempotencyKey(String customerId, String idempotencyKey);
 }

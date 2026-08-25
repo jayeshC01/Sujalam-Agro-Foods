@@ -1,5 +1,6 @@
 package com.gryffindor.excalibur.services;
 
+import com.gryffindor.excalibur.common.IdempotencyHelper;
 import com.gryffindor.excalibur.model.constants.OrderStatus;
 import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.Order;
@@ -19,10 +20,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -41,17 +44,20 @@ public class OrderService {
   private final ProductRepository productRepository;
   private final MemberIdentityHandlerService memberIdentityHandlerService;
   private final ApplicationEventPublisher applicationEventPublisher;
+  private final IdempotencyHelper idempotencyHelper;
 
   @Autowired
   OrderService(
       OrderRepository orderRepository,
       ProductRepository productRepository,
       MemberIdentityHandlerService memberIdentityHandlerService,
-      ApplicationEventPublisher applicationEventPublisher) {
+      ApplicationEventPublisher applicationEventPublisher,
+      IdempotencyHelper idempotencyHelper) {
     this.orderRepository = orderRepository;
     this.productRepository = productRepository;
     this.memberIdentityHandlerService = memberIdentityHandlerService;
     this.applicationEventPublisher = applicationEventPublisher;
+    this.idempotencyHelper = idempotencyHelper;
   }
 
   @Transactional(readOnly = true)
@@ -91,18 +97,66 @@ public class OrderService {
   }
 
   @Transactional
-  public ResponseEntity<OrderResponse> addOrder(OrderRequest orderRequest) {
+  public ResponseEntity<OrderResponse> addOrder(OrderRequest orderRequest, String idempotencyKey) {
     User user = memberIdentityHandlerService.getLoggedInUser();
+    String trimmedKey = idempotencyKey.trim();
+    String requestHash = idempotencyHelper.computeSha256(orderRequest);
 
+    Optional<Order> existingOrder =
+        orderRepository.findByUserIdAndIdempotencyKey(user.getId(), trimmedKey);
+    if (existingOrder.isPresent()) {
+      idempotencyHelper.validatePayloadIntegrity(
+          requestHash, existingOrder.get().getRequestHash(), trimmedKey);
+      log.info(
+          "Replaying idempotent response for order {} (Idempotency-Key: {})",
+          existingOrder.get().getOrderId(),
+          trimmedKey);
+      return ResponseEntity.ok(OrderResponse.from(existingOrder.get()));
+    }
+
+    Order order = buildOrder(user, orderRequest, trimmedKey, requestHash);
+
+    Order savedOrder = saveOrderSafely(order, user.getId(), trimmedKey);
+
+    log.info(
+        "Order {} created for user {} - {} item(s), subTotal {}, tax {}, delivery {}, grandTotal {}",
+        savedOrder.getOrderId(),
+        user.getId(),
+        savedOrder.getOrderDetails() != null ? savedOrder.getOrderDetails().size() : 0,
+        savedOrder.getSubTotal(),
+        savedOrder.getTaxAmount(),
+        savedOrder.getDeliveryCharge(),
+        savedOrder.getGrandTotal());
+
+    applicationEventPublisher.publishEvent(new OrderPlacedEvent(savedOrder));
+    return ResponseEntity.ok(OrderResponse.from(savedOrder));
+  }
+
+  private Order saveOrderSafely(Order order, String userId, String idempotencyKey) {
+    try {
+      return orderRepository.save(order);
+    } catch (DataIntegrityViolationException ex) {
+      log.info("Concurrent insert race resolved for user {} with key {}", userId, idempotencyKey);
+      return orderRepository
+          .findByUserIdAndIdempotencyKey(userId, idempotencyKey)
+          .orElseThrow(() -> ex);
+    }
+  }
+
+  private Order buildOrder(
+      User user, OrderRequest request, String idempotencyKey, String requestHash) {
     Order order = new Order();
     order.setOrderStatus(OrderStatus.PENDING);
     order.setUser(user);
-    order.setShippingAddress(orderRequest.getShippingAddress());
+    order.setShippingAddress(request.getShippingAddress());
+    order.setIdempotencyKey(idempotencyKey);
+    order.setRequestHash(requestHash);
 
     BigDecimal subTotal = BigDecimal.ZERO;
     BigDecimal totalTax = BigDecimal.ZERO;
     List<OrderDetails> orderDetails = new ArrayList<>();
-    for (OrderRequest.ProductRequest item : orderRequest.getProduct()) {
+
+    for (OrderRequest.ProductRequest item : request.getProduct()) {
       Product product =
           productRepository
               .findById(item.getProductId())
@@ -147,13 +201,11 @@ public class OrderService {
       }
     }
 
-    // Free delivery for orders >= ₹500, otherwise ₹100 standard delivery charge
     BigDecimal deliveryCharge =
         subTotal.compareTo(FREE_DELIVERY_THRESHOLD) >= 0
             ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
             : STANDARD_DELIVERY_CHARGE.setScale(2, RoundingMode.HALF_UP);
 
-    // Product prices already include GST, so grandTotal = subTotal + deliveryCharge
     BigDecimal grandTotal = subTotal.add(deliveryCharge).setScale(2, RoundingMode.HALF_UP);
 
     order.setOrderDetails(orderDetails);
@@ -162,18 +214,7 @@ public class OrderService {
     order.setDeliveryCharge(deliveryCharge);
     order.setGrandTotal(grandTotal);
 
-    Order savedOrder = orderRepository.save(order);
-    log.info(
-        "Order {} created for user {} - {} item(s), subTotal {}, tax {}, delivery {}, grandTotal {}",
-        savedOrder.getOrderId(),
-        user.getId(),
-        orderDetails.size(),
-        order.getSubTotal(),
-        order.getTaxAmount(),
-        order.getDeliveryCharge(),
-        order.getGrandTotal());
-    applicationEventPublisher.publishEvent(new OrderPlacedEvent(savedOrder));
-    return ResponseEntity.ok(OrderResponse.from(savedOrder));
+    return order;
   }
 
   @Transactional(readOnly = true)
