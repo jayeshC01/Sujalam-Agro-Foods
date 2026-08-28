@@ -720,10 +720,7 @@ class OrderServiceTest {
   }
 
   @Test
-  void addOrder_reEvaluatesLiveStockPerLineItem_whenSameProductOrderedTwice() {
-    // Guards against relying on a cached/stale Product read for authorization: even though the
-    // same Product row is fetched twice in one request, each line item must independently call
-    // the atomic decrement (which always checks live DB state), not a locally cached quantity.
+  void addOrder_consolidatesDuplicateProductItemsInSingleOrder() {
     User user = user("u1");
     when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
 
@@ -731,25 +728,65 @@ class OrderServiceTest {
     product.setId("p1");
     product.setName("Pistachios");
     product.setPrice(new BigDecimal("10.00"));
-    product.setQty(2);
+    product.setQty(5);
     product.setGstRate(new BigDecimal("0.05"));
     when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
         .thenReturn(Optional.of(product));
-    when(productRepository.decrementStock("p1", 1)).thenReturn(1);
+    when(productRepository.decrementStock("p1", 3)).thenReturn(1);
 
     OrderRequest.ProductRequest item1 = new OrderRequest.ProductRequest();
     item1.setProductId("p1");
     item1.setOrderedQty(1);
     OrderRequest.ProductRequest item2 = new OrderRequest.ProductRequest();
     item2.setProductId("p1");
-    item2.setOrderedQty(1);
+    item2.setOrderedQty(2);
     OrderRequest orderRequest = new OrderRequest(List.of(item1, item2), address());
 
     ResponseEntity<OrderResponse> response =
         orderService.addOrder(orderRequest, "test-idem-dup-item");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    verify(productRepository, org.mockito.Mockito.times(2)).decrementStock("p1", 1);
+    assertThat(response.getBody().getOrderDetails()).hasSize(1);
+    assertThat(response.getBody().getOrderDetails().get(0).getProductId()).isEqualTo("p1");
+    assertThat(response.getBody().getOrderDetails().get(0).getOrderedQty()).isEqualTo(3);
+    assertThat(response.getBody().getOrderDetails().get(0).getSubTotal())
+        .isEqualByComparingTo("30.00");
+    verify(productRepository, org.mockito.Mockito.times(1)).decrementStock("p1", 3);
+  }
+
+  @Test
+  void addOrder_locksProductsInCanonicalSortedOrder_preventingDeadlocks() {
+    User user = user("u1");
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
+
+    Product productB = product("p2", "Walnuts", "20.00", 5);
+    Product productA = product("p1", "Cashews", "50.00", 5);
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(productA));
+    when(productRepository.findByIdAndStatus("p2", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(productB));
+    when(productRepository.decrementStock("p1", 1)).thenReturn(1);
+    when(productRepository.decrementStock("p2", 1)).thenReturn(1);
+
+    // Provide items in reverse alphabetical order: p2 then p1
+    OrderRequest.ProductRequest itemB = new OrderRequest.ProductRequest();
+    itemB.setProductId("p2");
+    itemB.setOrderedQty(1);
+    OrderRequest.ProductRequest itemA = new OrderRequest.ProductRequest();
+    itemA.setProductId("p1");
+    itemA.setOrderedQty(1);
+    OrderRequest orderRequest = new OrderRequest(List.of(itemB, itemA), address());
+
+    ResponseEntity<OrderResponse> response =
+        orderService.addOrder(orderRequest, "test-idem-sorted-locks");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    // Verify row locks / stock decrements are strictly executed in ascending sorted order: p1 then
+    // p2
+    org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(productRepository);
+    inOrder.verify(productRepository).decrementStock("p1", 1);
+    inOrder.verify(productRepository).decrementStock("p2", 1);
   }
 
   @Test

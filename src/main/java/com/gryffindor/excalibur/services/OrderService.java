@@ -20,7 +20,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -156,15 +159,26 @@ public class OrderService {
     BigDecimal totalTax = BigDecimal.ZERO;
     List<OrderDetails> orderDetails = new ArrayList<>();
 
-    for (OrderRequest.ProductRequest item : request.getProduct()) {
+    Map<String, Integer> consolidatedItems =
+        request.getProduct().stream()
+            .collect(
+                Collectors.toMap(
+                    item -> item.getProductId().trim(),
+                    OrderRequest.ProductRequest::getOrderedQty,
+                    Integer::sum,
+                    TreeMap::new));
+
+    for (Map.Entry<String, Integer> item : consolidatedItems.entrySet()) {
+      String productId = item.getKey();
+      int orderedQty = item.getValue();
+
       Product product =
           productRepository
-              .findByIdAndStatus(item.getProductId(), Product.Status.ACTIVE)
+              .findByIdAndStatus(productId, Product.Status.ACTIVE)
               .orElseThrow(
-                  () ->
-                      new EntityNotFoundException("Product " + item.getProductId() + " not found"));
+                  () -> new EntityNotFoundException("Product " + productId + " not found"));
 
-      int updatedRows = productRepository.decrementStock(item.getProductId(), item.getOrderedQty());
+      int updatedRows = productRepository.decrementStock(productId, orderedQty);
       if (updatedRows == 0) {
         throw new InsufficientStockException(
             "Insufficient stock for product '"
@@ -172,16 +186,16 @@ public class OrderService {
                 + "'. Available: "
                 + product.getQty()
                 + ", requested: "
-                + item.getOrderedQty());
+                + orderedQty);
       }
 
-      BigDecimal quantity = BigDecimal.valueOf(item.getOrderedQty());
+      BigDecimal quantity = BigDecimal.valueOf(orderedQty);
       BigDecimal itemSubTotal = product.getPrice().multiply(quantity);
 
       OrderDetails orderDetail = new OrderDetails();
       orderDetail.setOrder(order);
       orderDetail.setProduct(product);
-      orderDetail.setOrderedQty(item.getOrderedQty());
+      orderDetail.setOrderedQty(orderedQty);
       orderDetail.setUnitPrice(product.getPrice());
       orderDetail.setSubTotal(itemSubTotal);
       orderDetails.add(orderDetail);
