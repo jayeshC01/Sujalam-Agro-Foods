@@ -499,7 +499,8 @@ class OrderServiceTest {
     product.setPrice(new BigDecimal("50.00"));
     product.setQty(10);
     product.setGstRate(new BigDecimal("0.05"));
-    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 2)).thenReturn(1);
 
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
@@ -540,7 +541,8 @@ class OrderServiceTest {
   void addOrder_throwsNotFound_whenProductMissing() {
     User user = user("u1");
     when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
-    when(productRepository.findById("missing")).thenReturn(Optional.empty());
+    when(productRepository.findByIdAndStatus("missing", Product.Status.ACTIVE))
+        .thenReturn(Optional.empty());
 
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("missing");
@@ -549,6 +551,25 @@ class OrderServiceTest {
 
     assertThatThrownBy(() -> orderService.addOrder(orderRequest, "test-idem-missing"))
         .isInstanceOf(EntityNotFoundException.class);
+
+    verify(orderRepository, org.mockito.Mockito.never()).save(org.mockito.Mockito.any());
+  }
+
+  @Test
+  void addOrder_throwsNotFound_whenProductIsInactive() {
+    User user = user("u1");
+    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.empty());
+
+    OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
+    item.setProductId("p1");
+    item.setOrderedQty(1);
+    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+
+    assertThatThrownBy(() -> orderService.addOrder(orderRequest, "test-idem-inactive"))
+        .isInstanceOf(EntityNotFoundException.class)
+        .hasMessageContaining("Product p1 not found");
 
     verify(orderRepository, org.mockito.Mockito.never()).save(org.mockito.Mockito.any());
   }
@@ -564,7 +585,8 @@ class OrderServiceTest {
     product.setPrice(new BigDecimal("50.00"));
     product.setQty(1);
     product.setGstRate(new BigDecimal("0.05"));
-    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 2)).thenReturn(0);
 
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
@@ -590,7 +612,8 @@ class OrderServiceTest {
     product.setPrice(new BigDecimal("50.00"));
     product.setQty(2);
     product.setGstRate(new BigDecimal("0.05"));
-    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 2)).thenReturn(1);
 
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
@@ -621,8 +644,10 @@ class OrderServiceTest {
     product2.setPrice(new BigDecimal("20.00"));
     product2.setQty(5);
     product2.setGstRate(new BigDecimal("0.05"));
-    when(productRepository.findById("p1")).thenReturn(Optional.of(product1));
-    when(productRepository.findById("p2")).thenReturn(Optional.of(product2));
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product1));
+    when(productRepository.findByIdAndStatus("p2", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product2));
     when(productRepository.decrementStock("p1", 1)).thenReturn(1);
     when(productRepository.decrementStock("p2", 3)).thenReturn(1);
 
@@ -671,8 +696,10 @@ class OrderServiceTest {
     product2.setPrice(new BigDecimal("20.00"));
     product2.setQty(1);
     product2.setGstRate(new BigDecimal("0.05"));
-    when(productRepository.findById("p1")).thenReturn(Optional.of(product1));
-    when(productRepository.findById("p2")).thenReturn(Optional.of(product2));
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product1));
+    when(productRepository.findByIdAndStatus("p2", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product2));
     when(productRepository.decrementStock("p1", 1)).thenReturn(1);
     when(productRepository.decrementStock("p2", 3)).thenReturn(0);
 
@@ -706,7 +733,8 @@ class OrderServiceTest {
     product.setPrice(new BigDecimal("10.00"));
     product.setQty(2);
     product.setGstRate(new BigDecimal("0.05"));
-    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 1)).thenReturn(1);
 
     OrderRequest.ProductRequest item1 = new OrderRequest.ProductRequest();
@@ -739,7 +767,8 @@ class OrderServiceTest {
     product.setPrice(new BigDecimal("100.00"));
     product.setQty(2);
     product.setGstRate(new BigDecimal("0.05"));
-    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product));
 
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
@@ -796,7 +825,8 @@ class OrderServiceTest {
     product.setPrice(new BigDecimal("500.00"));
     product.setQty(5);
     product.setGstRate(new BigDecimal("0.05"));
-    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 1)).thenReturn(1);
 
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
@@ -826,7 +856,8 @@ class OrderServiceTest {
     product.setPrice(new BigDecimal("112.00")); // Inclusive of 12% GST
     product.setQty(5);
     product.setGstRate(new BigDecimal("0.12")); // 12% GST
-    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 1)).thenReturn(1);
 
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
@@ -922,7 +953,8 @@ class OrderServiceTest {
     when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
 
     Product product = product("p1", "Cashews", "100.00", 5);
-    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 1)).thenReturn(1);
 
     Order winnerOrder = new Order();
@@ -961,7 +993,8 @@ class OrderServiceTest {
     User user2 = user("u2");
 
     Product product = product("p1", "Cashews", "100.00", 10);
-    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 1)).thenReturn(1);
 
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
@@ -993,7 +1026,8 @@ class OrderServiceTest {
     when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user);
 
     Product product = product("p1", "Cashews", "100.00", 5);
-    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(productRepository.findByIdAndStatus("p1", Product.Status.ACTIVE))
+        .thenReturn(Optional.of(product));
     when(productRepository.decrementStock("p1", 1)).thenReturn(1);
 
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();

@@ -71,6 +71,21 @@ class ErrorHandlerTest {
   }
 
   @Test
+  void handleDuplicateProductException_returnsConflictWithMessage() {
+    com.gryffindor.excalibur.model.exception.DuplicateProductException exception =
+        new com.gryffindor.excalibur.model.exception.DuplicateProductException(
+            "Product with name 'Rice' already exists");
+
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleDuplicateProductException(exception);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage())
+        .isEqualTo("Product with name 'Rice' already exists");
+  }
+
+  @Test
   void handleInsufficientStockException_returnsConflictWithFrontendFriendlyMessage() {
     ResponseEntity<ErrorResponse> response =
         errorHandler.handleInsufficientStockException(
