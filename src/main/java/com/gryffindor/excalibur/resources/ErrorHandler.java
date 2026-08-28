@@ -1,6 +1,7 @@
 package com.gryffindor.excalibur.resources;
 
 import com.gryffindor.excalibur.config.RequestLoggingFilter;
+import com.gryffindor.excalibur.model.exception.DuplicateProductException;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
@@ -60,6 +61,13 @@ public class ErrorHandler {
       EntityNotFoundException exception) {
     logger.info("Entity not found: {}", exception.getMessage());
     return constructErrorResponse(HttpStatus.NOT_FOUND, exception.getMessage(), null);
+  }
+
+  @ExceptionHandler(DuplicateProductException.class)
+  public ResponseEntity<ErrorResponse> handleDuplicateProductException(
+      DuplicateProductException exception) {
+    logger.warn("Duplicate product: {}", exception.getMessage());
+    return constructErrorResponse(HttpStatus.CONFLICT, exception.getMessage(), null);
   }
 
   @ExceptionHandler(DataIntegrityViolationException.class)

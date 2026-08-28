@@ -159,7 +159,7 @@ public class OrderService {
     for (OrderRequest.ProductRequest item : request.getProduct()) {
       Product product =
           productRepository
-              .findById(item.getProductId())
+              .findByIdAndStatus(item.getProductId(), Product.Status.ACTIVE)
               .orElseThrow(
                   () ->
                       new EntityNotFoundException("Product " + item.getProductId() + " not found"));

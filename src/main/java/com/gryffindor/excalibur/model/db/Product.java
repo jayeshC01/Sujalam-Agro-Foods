@@ -19,11 +19,19 @@ import org.hibernate.annotations.Check;
 @EqualsAndHashCode(callSuper = false)
 @Table(
     name = "products",
-    indexes = {@Index(name = "idx_products_category", columnList = "category")})
+    indexes = {
+      @Index(name = "idx_products_status_category", columnList = "status, category"),
+      @Index(name = "idx_products_category", columnList = "category")
+    })
 public class Product extends AuditStamp implements Serializable {
   public enum Category {
     EDIBLE,
     NOT_EDIBLE
+  }
+
+  public enum Status {
+    ACTIVE,
+    INACTIVE
   }
 
   @Id
@@ -58,6 +66,12 @@ public class Product extends AuditStamp implements Serializable {
   private Integer qty;
 
   @Column(name = "gst_rate", nullable = false, precision = 5, scale = 4)
-  @Check(name = "chk_products_gst_rate_non_negative", constraints = "gst_rate >= 0")
+  @Check(name = "chk_products_gst_rate_valid", constraints = "gst_rate >= 0 AND gst_rate <= 1.0")
   private BigDecimal gstRate;
+
+  @Column(name = "status", nullable = false)
+  @Enumerated(EnumType.STRING)
+  @Check(name = "chk_products_status_valid", constraints = "status IN ('ACTIVE', 'INACTIVE')")
+  @Builder.Default
+  private Status status = Status.ACTIVE;
 }
