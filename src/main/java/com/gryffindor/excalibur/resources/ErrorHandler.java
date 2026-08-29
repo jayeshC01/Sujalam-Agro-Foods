@@ -6,6 +6,8 @@ import com.gryffindor.excalibur.model.exception.AuthenticationProviderException;
 import com.gryffindor.excalibur.model.exception.DuplicateProductException;
 import com.gryffindor.excalibur.model.exception.IdempotencyPayloadMismatchException;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
+import com.gryffindor.excalibur.model.exception.InvalidOrderStatusTransitionException;
+import com.gryffindor.excalibur.model.exception.InvalidRequestException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -14,6 +16,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -115,6 +118,15 @@ public class ErrorHandler {
         HttpStatus.CONFLICT, "A record with the same unique value already exists.", null);
   }
 
+  @ExceptionHandler(DataAccessException.class)
+  public ResponseEntity<ErrorResponse> handleDataAccessException(DataAccessException exception) {
+    logger.error("Database access or connection error", exception);
+    return constructErrorResponse(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        "Database service is temporarily unavailable. Please try again later.",
+        null);
+  }
+
   @ExceptionHandler(InsufficientStockException.class)
   public ResponseEntity<ErrorResponse> handleInsufficientStockException(
       InsufficientStockException exception) {
@@ -176,10 +188,17 @@ public class ErrorHandler {
         null);
   }
 
-  @ExceptionHandler(IllegalArgumentException.class)
-  public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
-      IllegalArgumentException exception) {
-    logger.warn("Illegal argument: {}", exception.getMessage());
+  @ExceptionHandler(InvalidOrderStatusTransitionException.class)
+  public ResponseEntity<ErrorResponse> handleInvalidOrderStatusTransitionException(
+      InvalidOrderStatusTransitionException exception) {
+    logger.warn("Invalid order status transition: {}", exception.getMessage());
+    return constructErrorResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), null);
+  }
+
+  @ExceptionHandler(InvalidRequestException.class)
+  public ResponseEntity<ErrorResponse> handleInvalidRequestException(
+      InvalidRequestException exception) {
+    logger.warn("Invalid request: {}", exception.getMessage());
     return constructErrorResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), null);
   }
 

@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gryffindor.excalibur.model.constants.OrderStatus;
 import com.gryffindor.excalibur.model.db.Address;
+import com.gryffindor.excalibur.model.exception.InvalidOrderStatusTransitionException;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.request.UpdateOrderStatusRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
@@ -218,7 +219,7 @@ class OrderResourceTest {
   @DisplayName("Cancelling an order in a non-cancellable state returns 400")
   void cancelOrder_returnsBadRequest_forInvalidTransition() throws Exception {
     when(orderService.cancelOrder("o1"))
-        .thenThrow(new IllegalArgumentException("Invalid order status transition"));
+        .thenThrow(new InvalidOrderStatusTransitionException("Invalid order status transition"));
 
     mockMvc
         .perform(post("/orders/o1/cancel"))

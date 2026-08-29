@@ -6,12 +6,17 @@ import static org.mockito.Mockito.mock;
 import com.gryffindor.excalibur.model.exception.AccountDisabledException;
 import com.gryffindor.excalibur.model.exception.AuthenticationProviderException;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
+import com.gryffindor.excalibur.model.exception.InvalidOrderStatusTransitionException;
+import com.gryffindor.excalibur.model.exception.InvalidRequestException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -118,15 +123,27 @@ class ErrorHandlerTest {
   }
 
   @Test
-  void handleIllegalArgumentException_returnsBadRequest() {
+  void handleInvalidOrderStatusTransitionException_returnsBadRequest() {
     ResponseEntity<ErrorResponse> response =
-        errorHandler.handleIllegalArgumentException(
-            new IllegalArgumentException("Invalid order status transition from A to B"));
+        errorHandler.handleInvalidOrderStatusTransitionException(
+            new InvalidOrderStatusTransitionException(
+                "Invalid order status transition from A to B"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getMessage())
         .isEqualTo("Invalid order status transition from A to B");
+  }
+
+  @Test
+  void handleInvalidRequestException_returnsBadRequest() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleInvalidRequestException(
+            new InvalidRequestException("Invalid sort direction: 'sideways'"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage()).isEqualTo("Invalid sort direction: 'sideways'");
   }
 
   @Test
@@ -157,6 +174,33 @@ class ErrorHandlerTest {
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getMessage())
         .isEqualTo("Product with name 'Rice' already exists");
+  }
+
+  @Test
+  void handleDataIntegrityViolationException_returnsConflict() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleDataIntegrityViolationException(
+            new DataIntegrityViolationException(
+                "Duplicate entry 'john@example.com' for key 'users.UK_email'"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage())
+        .isEqualTo("A record with the same unique value already exists.");
+  }
+
+  @Test
+  void handleDataAccessException_returnsServiceUnavailableWithoutLeakingRawMessage() {
+    DataAccessException exception =
+        new DataAccessResourceFailureException(
+            "Communications link failure: jdbc:mysql://admin:secret@10.0.0.1:3306/prod");
+
+    ResponseEntity<ErrorResponse> response = errorHandler.handleDataAccessException(exception);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage())
+        .isEqualTo("Database service is temporarily unavailable. Please try again later.");
   }
 
   @Test

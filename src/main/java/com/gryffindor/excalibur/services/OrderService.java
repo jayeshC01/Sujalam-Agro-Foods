@@ -9,6 +9,8 @@ import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.model.event.OrderPlacedEvent;
 import com.gryffindor.excalibur.model.event.OrderStatusUpdatedEvent;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
+import com.gryffindor.excalibur.model.exception.InvalidOrderStatusTransitionException;
+import com.gryffindor.excalibur.model.exception.InvalidRequestException;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
 import com.gryffindor.excalibur.model.response.PageResponse;
@@ -84,14 +86,14 @@ public class OrderService {
     String trimmedSortBy = sortBy != null ? sortBy.trim() : "createdAt";
     String property = SORT_FIELDS.get(trimmedSortBy);
     if (property == null) {
-      throw new IllegalArgumentException(
+      throw new InvalidRequestException(
           "Invalid sortBy value: '" + sortBy + "'. Allowed values: createdAt, updatedAt");
     }
 
     String trimmedDirection = sortDirection != null ? sortDirection.trim() : "desc";
     Sort.Direction direction = SORT_DIRECTIONS.get(trimmedDirection);
     if (direction == null) {
-      throw new IllegalArgumentException(
+      throw new InvalidRequestException(
           "Invalid sort direction: '" + sortDirection + "'. Allowed values: asc, desc");
     }
 
@@ -344,7 +346,7 @@ public class OrderService {
   private Order applyStatusChange(Order order, OrderStatus status) {
     OrderStatus previousStatus = order.getOrderStatus();
     if (!previousStatus.canTransitionTo(status)) {
-      throw new IllegalArgumentException(
+      throw new InvalidOrderStatusTransitionException(
           "Invalid order status transition from " + previousStatus + " to " + status);
     }
 

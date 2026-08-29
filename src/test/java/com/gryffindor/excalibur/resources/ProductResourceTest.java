@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gryffindor.excalibur.model.db.Product;
+import com.gryffindor.excalibur.model.exception.InvalidRequestException;
 import com.gryffindor.excalibur.model.request.ProductRequest;
 import com.gryffindor.excalibur.model.request.ProductUpdateRequest;
 import com.gryffindor.excalibur.model.response.PageResponse;
@@ -499,7 +500,7 @@ class ProductResourceTest {
   @DisplayName("Restock request with zero or negative quantity is rejected")
   void restockProduct_nonPositiveQuantity_isRejected() throws Exception {
     when(productService.restockProduct("p1", 0))
-        .thenThrow(new IllegalArgumentException("Restock quantity must be greater than 0"));
+        .thenThrow(new InvalidRequestException("Restock quantity must be greater than 0"));
 
     mockMvc
         .perform(post("/admin/product/{id}/restock", "p1").param("quantity", "0"))
@@ -536,7 +537,7 @@ class ProductResourceTest {
   @DisplayName("Write-off request with zero or negative quantity is rejected")
   void writeOffStock_nonPositiveQuantity_isRejected() throws Exception {
     when(productService.writeOffStock("p1", 0))
-        .thenThrow(new IllegalArgumentException("Write-off quantity must be greater than 0"));
+        .thenThrow(new InvalidRequestException("Write-off quantity must be greater than 0"));
 
     mockMvc
         .perform(post("/admin/product/{id}/write-off", "p1").param("quantity", "0"))

@@ -19,6 +19,8 @@ import com.gryffindor.excalibur.model.event.OrderPlacedEvent;
 import com.gryffindor.excalibur.model.event.OrderStatusUpdatedEvent;
 import com.gryffindor.excalibur.model.exception.IdempotencyPayloadMismatchException;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
+import com.gryffindor.excalibur.model.exception.InvalidOrderStatusTransitionException;
+import com.gryffindor.excalibur.model.exception.InvalidRequestException;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
 import com.gryffindor.excalibur.model.response.PageResponse;
@@ -167,19 +169,19 @@ class OrderServiceTest {
   }
 
   @Test
-  void getAllOrders_throwsIllegalArgument_whenSortByIsInvalid() {
+  void getAllOrders_throwsInvalidRequest_whenSortByIsInvalid() {
     assertThatThrownBy(
             () -> orderService.getAllOrders(null, null, null, 0, 10, "invalidField", "desc"))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(InvalidRequestException.class)
         .hasMessageContaining(
             "Invalid sortBy value: 'invalidField'. Allowed values: createdAt, updatedAt");
   }
 
   @Test
-  void getAllOrders_throwsIllegalArgument_whenSortDirectionIsInvalid() {
+  void getAllOrders_throwsInvalidRequest_whenSortDirectionIsInvalid() {
     assertThatThrownBy(
             () -> orderService.getAllOrders(null, null, null, 0, 10, "createdAt", "invalidDir"))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(InvalidRequestException.class)
         .hasMessageContaining("Invalid sort direction: 'invalidDir'");
   }
 
@@ -280,7 +282,7 @@ class OrderServiceTest {
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
 
     assertThatThrownBy(() -> orderService.updateOrderStatus("o1", OrderStatus.CANCELED))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(InvalidOrderStatusTransitionException.class)
         .hasMessageContaining("Invalid order status transition");
   }
 
@@ -387,7 +389,7 @@ class OrderServiceTest {
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
 
     assertThatThrownBy(() -> orderService.updateOrderStatus("o1", OrderStatus.CANCELED))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(InvalidOrderStatusTransitionException.class);
 
     verify(productRepository, org.mockito.Mockito.never())
         .incrementStock(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt());
@@ -497,7 +499,7 @@ class OrderServiceTest {
   }
 
   @Test
-  void cancelOrder_throwsIllegalArgument_whenOrderAlreadyCompleted() {
+  void cancelOrder_throwsForInvalidTransition_whenAlreadyCompleted() {
     User owner = user("u1");
 
     Order order = new Order();
@@ -510,7 +512,7 @@ class OrderServiceTest {
     when(memberIdentityHandlerService.isOwner("u1")).thenReturn(true);
 
     assertThatThrownBy(() -> orderService.cancelOrder("o1"))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(InvalidOrderStatusTransitionException.class)
         .hasMessageContaining("Invalid order status transition");
 
     verify(productRepository, org.mockito.Mockito.never())
@@ -518,7 +520,7 @@ class OrderServiceTest {
   }
 
   @Test
-  void cancelOrder_throwsIllegalArgument_whenOrderAlreadyCanceled() {
+  void cancelOrder_throwsForInvalidTransition_whenOrderAlreadyCanceled() {
     User owner = user("u1");
 
     Order order = new Order();
@@ -531,7 +533,7 @@ class OrderServiceTest {
     when(memberIdentityHandlerService.isOwner("u1")).thenReturn(true);
 
     assertThatThrownBy(() -> orderService.cancelOrder("o1"))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(InvalidOrderStatusTransitionException.class);
 
     // Guards against a second cancellation crediting the same stock twice.
     verify(productRepository, org.mockito.Mockito.never())

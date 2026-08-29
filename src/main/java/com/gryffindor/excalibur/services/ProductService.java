@@ -2,6 +2,7 @@ package com.gryffindor.excalibur.services;
 
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.exception.DuplicateProductException;
+import com.gryffindor.excalibur.model.exception.InvalidRequestException;
 import com.gryffindor.excalibur.model.request.ProductRequest;
 import com.gryffindor.excalibur.model.request.ProductUpdateRequest;
 import com.gryffindor.excalibur.model.response.PageResponse;
@@ -196,7 +197,7 @@ public class ProductService {
   @Transactional
   public ResponseEntity<ProductResponse> restockProduct(String id, int quantity) {
     if (quantity <= 0) {
-      throw new IllegalArgumentException("Restock quantity must be greater than 0");
+      throw new InvalidRequestException("Restock quantity must be greater than 0");
     }
     int updatedRows = productRepository.incrementStock(id, quantity);
     if (updatedRows == 0) {
@@ -250,7 +251,7 @@ public class ProductService {
   @Transactional
   public ResponseEntity<ProductResponse> writeOffStock(String id, int quantity) {
     if (quantity <= 0) {
-      throw new IllegalArgumentException("Write-off quantity must be greater than 0");
+      throw new InvalidRequestException("Write-off quantity must be greater than 0");
     }
     int updatedRows = productRepository.decrementStock(id, quantity);
     if (updatedRows == 0) {
@@ -261,7 +262,7 @@ public class ProductService {
                   () ->
                       new EntityNotFoundException(
                           "Product with id " + id + " not found. Write-off cannot be performed"));
-      throw new IllegalArgumentException(
+      throw new InvalidRequestException(
           "Cannot write-off "
               + quantity
               + " unit(s) of product '"
