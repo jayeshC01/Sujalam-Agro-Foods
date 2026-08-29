@@ -39,9 +39,17 @@ public class MemberIdentityHandlerService {
     return getLoggedInUser().getId();
   }
 
+  public boolean isAdmin() {
+    return getLoggedInUser().getRole() == Roles.ADMIN;
+  }
+
+  public boolean isOwner(String ownerId) {
+    return ownerId != null && ownerId.equals(getLoggedInMemberID());
+  }
+
   public User requireAdmin() throws AccessDeniedException {
     User currentUser = getLoggedInUser();
-    if (currentUser.getRole() != Roles.ADMIN) {
+    if (!isAdmin()) {
       throw new AccessDeniedException("You are not allowed to access this resource");
     }
     return currentUser;

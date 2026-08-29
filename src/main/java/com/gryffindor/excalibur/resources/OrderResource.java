@@ -1,5 +1,6 @@
 package com.gryffindor.excalibur.resources;
 
+import com.gryffindor.excalibur.model.constants.OrderStatus;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.request.UpdateOrderStatusRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
@@ -8,8 +9,9 @@ import com.gryffindor.excalibur.services.OrderService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import java.util.List;
+import java.time.LocalDate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -30,17 +32,28 @@ public class OrderResource {
     return orderService.getOrderById(id);
   }
 
-  @GetMapping("/orders")
+  @GetMapping("/admin/orders")
   @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<PageResponse<OrderResponse>> getOrders(
+      @RequestParam(required = false) OrderStatus status,
+      @RequestParam(required = false) String customerId,
+      @RequestParam(required = false, name = "customerID") String customerIdAlt,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate createdAt,
       @RequestParam(defaultValue = "0") @Min(0) int page,
-      @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
-    return orderService.getAllOrders(page, size);
+      @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
+      @RequestParam(defaultValue = "createdAt") String sortBy,
+      @RequestParam(defaultValue = "desc") String sort) {
+    String resolvedCustomerId = customerId != null ? customerId : customerIdAlt;
+    return orderService.getAllOrders(
+        status, resolvedCustomerId, createdAt, page, size, sortBy, sort);
   }
 
-  @GetMapping("/customer/orders")
-  public ResponseEntity<List<OrderResponse>> getCustomerOrders() {
-    return orderService.getOrdersForCustomer();
+  @GetMapping("/orders")
+  public ResponseEntity<PageResponse<OrderResponse>> getCustomerOrders(
+      @RequestParam(defaultValue = "0") @Min(0) int page,
+      @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
+    return orderService.getOrdersForCustomer(page, size);
   }
 
   @PostMapping("/orders")
