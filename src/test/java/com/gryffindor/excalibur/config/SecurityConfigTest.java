@@ -22,7 +22,7 @@ class SecurityConfigTest {
   void setUp() {
     resolver = mock(HandlerExceptionResolver.class);
     FirebaseAuthenticationFilter filter = mock(FirebaseAuthenticationFilter.class);
-    securityConfig = new SecurityConfig(filter, resolver);
+    securityConfig = new SecurityConfig(filter, resolver, true);
   }
 
   @Test

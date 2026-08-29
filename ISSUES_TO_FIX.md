@@ -109,11 +109,5 @@ the same pass.
 
 ## P3 — Hygiene
 
-### P3-31. No README, no API documentation
-No springdoc/OpenAPI. `spring-restdocs` is on the classpath but generates nothing. Frontend devs are
-reading Java to learn the contract.
-
-### P3-32. No `.env.example` or documented run instructions
-Onboarding a second developer requires you in the loop.
-
 ### P3-33. No staging environment or post-deploy smoke test
+

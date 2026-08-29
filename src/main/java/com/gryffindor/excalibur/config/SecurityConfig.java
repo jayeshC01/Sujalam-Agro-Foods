@@ -2,6 +2,7 @@ package com.gryffindor.excalibur.config;
 
 import com.gryffindor.excalibur.model.constants.Roles;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -22,12 +23,15 @@ public class SecurityConfig {
 
   private final FirebaseAuthenticationFilter firebaseAuthenticationFilter;
   private final HandlerExceptionResolver resolver;
+  private final boolean swaggerPublic;
 
   public SecurityConfig(
       FirebaseAuthenticationFilter firebaseAuthenticationFilter,
-      @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
+      @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver,
+      @Value("${app.swagger.public:true}") boolean swaggerPublic) {
     this.firebaseAuthenticationFilter = firebaseAuthenticationFilter;
     this.resolver = resolver;
+    this.swaggerPublic = swaggerPublic;
   }
 
   @Bean
@@ -41,20 +45,37 @@ public class SecurityConfig {
                     .authenticationEntryPoint(authenticationEntryPoint())
                     .accessDeniedHandler(accessDeniedHandler()))
         .authorizeHttpRequests(
-            requests ->
+            requests -> {
+              // Actuator health and info probes for Cloud Run, Kubernetes, and load balancers.
+              requests
+                  .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info")
+                  .permitAll();
+
+              if (swaggerPublic) {
+                // Directly accessible in local development.
                 requests
-                    // Actuator health and info probes for Cloud Run, Kubernetes, and load balancers.
-                    .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info")
-                    .permitAll()
-                    // Public product catalog browsing.
-                    .requestMatchers(HttpMethod.GET, "/product/**", "/products")
-                    .permitAll()
-                    // Admin account creation is bootstrap-only: not exposed publicly, only an
-                    // existing admin may create another admin (see /admin/** rule below).
-                    .requestMatchers("/admin/**")
-                    .hasRole(Roles.ADMIN.name())
-                    .anyRequest()
-                    .authenticated())
+                    .requestMatchers(
+                        "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/v3/api-docs")
+                    .permitAll();
+              } else {
+                // In production / non-local, require authentication (Admin only).
+                requests
+                    .requestMatchers(
+                        "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/v3/api-docs")
+                    .hasRole(Roles.ADMIN.name());
+              }
+
+              requests
+                  // Public product catalog browsing.
+                  .requestMatchers(HttpMethod.GET, "/product/**", "/products")
+                  .permitAll()
+                  // Admin account creation is bootstrap-only: not exposed publicly, only an
+                  // existing admin may create another admin (see /admin/** rule below).
+                  .requestMatchers("/admin/**")
+                  .hasRole(Roles.ADMIN.name())
+                  .anyRequest()
+                  .authenticated();
+            })
         .addFilterBefore(firebaseAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
