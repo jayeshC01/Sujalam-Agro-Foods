@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.gryffindor.excalibur.model.db.Product;
+import com.gryffindor.excalibur.model.exception.DuplicateProductException;
 import com.gryffindor.excalibur.model.request.ProductRequest;
 import com.gryffindor.excalibur.model.request.ProductUpdateRequest;
 import com.gryffindor.excalibur.model.response.PageResponse;
@@ -318,7 +319,7 @@ class ProductServiceTest {
                 "Duplicate entry 'Rice' for key 'uk_products_name'"));
 
     assertThatThrownBy(() -> productService.addProduct(fullProductRequest()))
-        .isInstanceOf(com.gryffindor.excalibur.model.exception.DuplicateProductException.class)
+        .isInstanceOf(DuplicateProductException.class)
         .hasMessageContaining("Product with name 'Rice' already exists");
   }
 
@@ -395,7 +396,7 @@ class ProductServiceTest {
     update.setName("Soap");
 
     assertThatThrownBy(() -> productService.updateProductById("p1", update))
-        .isInstanceOf(com.gryffindor.excalibur.model.exception.DuplicateProductException.class)
+        .isInstanceOf(DuplicateProductException.class)
         .hasMessageContaining("Product with name 'Soap' already exists");
   }
 

@@ -17,6 +17,7 @@ import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.model.event.OrderPlacedEvent;
 import com.gryffindor.excalibur.model.event.OrderStatusUpdatedEvent;
+import com.gryffindor.excalibur.model.exception.IdempotencyPayloadMismatchException;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
@@ -1050,10 +1051,8 @@ class OrderServiceTest {
     item.setOrderedQty(1);
     OrderRequest orderRequest = new OrderRequest(List.of(item), address());
 
-    org.assertj.core.api.Assertions.assertThatThrownBy(
-            () -> orderService.addOrder(orderRequest, "idem-key-1"))
-        .isInstanceOf(
-            com.gryffindor.excalibur.model.exception.IdempotencyPayloadMismatchException.class)
+    assertThatThrownBy(() -> orderService.addOrder(orderRequest, "idem-key-1"))
+        .isInstanceOf(IdempotencyPayloadMismatchException.class)
         .hasMessageContaining("previously used with a different request payload");
   }
 

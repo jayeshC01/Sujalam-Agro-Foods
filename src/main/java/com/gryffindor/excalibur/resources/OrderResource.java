@@ -13,7 +13,6 @@ import java.time.LocalDate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,7 +32,6 @@ public class OrderResource {
   }
 
   @GetMapping("/admin/orders")
-  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<PageResponse<OrderResponse>> getOrders(
       @RequestParam(required = false) OrderStatus status,
       @RequestParam(required = false) String customerId,
@@ -69,7 +67,6 @@ public class OrderResource {
   }
 
   @PatchMapping("/admin/orders/{id}/status")
-  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<OrderResponse> updateOrderStatus(
       @PathVariable String id, @Valid @RequestBody UpdateOrderStatusRequest request) {
     return orderService.updateOrderStatus(id, request.getStatus());

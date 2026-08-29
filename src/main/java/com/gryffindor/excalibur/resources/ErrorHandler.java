@@ -1,7 +1,10 @@
 package com.gryffindor.excalibur.resources;
 
 import com.gryffindor.excalibur.config.RequestLoggingFilter;
+import com.gryffindor.excalibur.model.exception.AccountDisabledException;
+import com.gryffindor.excalibur.model.exception.AuthenticationProviderException;
 import com.gryffindor.excalibur.model.exception.DuplicateProductException;
+import com.gryffindor.excalibur.model.exception.IdempotencyPayloadMismatchException;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
@@ -17,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -38,6 +42,23 @@ public class ErrorHandler {
       UserNotRegisteredException exception) {
     logger.warn("User not registered: {}", exception.getMessage());
     return constructErrorResponse(HttpStatus.FORBIDDEN, exception.getMessage(), null);
+  }
+
+  @ExceptionHandler(AccountDisabledException.class)
+  public ResponseEntity<ErrorResponse> handleAccountDisabledException(
+      AccountDisabledException exception) {
+    logger.warn("Deactivated account access attempt: {}", exception.getMessage());
+    return constructErrorResponse(HttpStatus.FORBIDDEN, exception.getMessage(), null);
+  }
+
+  @ExceptionHandler(AuthenticationProviderException.class)
+  public ResponseEntity<ErrorResponse> handleAuthenticationProviderException(
+      AuthenticationProviderException exception) {
+    logger.error("Authentication provider operation failed: {}", exception.getMessage(), exception);
+    return constructErrorResponse(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "Failed to update authentication provider. Please try again later.",
+        null);
   }
 
   @ExceptionHandler(ConstraintViolationException.class)
@@ -88,10 +109,9 @@ public class ErrorHandler {
         exception.getMessage());
   }
 
-  @ExceptionHandler(
-      com.gryffindor.excalibur.model.exception.IdempotencyPayloadMismatchException.class)
+  @ExceptionHandler(IdempotencyPayloadMismatchException.class)
   public ResponseEntity<ErrorResponse> handleIdempotencyPayloadMismatchException(
-      com.gryffindor.excalibur.model.exception.IdempotencyPayloadMismatchException exception) {
+      IdempotencyPayloadMismatchException exception) {
     logger.warn("Idempotency payload mismatch: {}", exception.getMessage());
     return constructErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY, exception.getMessage(), null);
   }
@@ -130,9 +150,9 @@ public class ErrorHandler {
         null);
   }
 
-  @ExceptionHandler(org.springframework.web.bind.MissingRequestHeaderException.class)
+  @ExceptionHandler(MissingRequestHeaderException.class)
   public ResponseEntity<ErrorResponse> handleMissingRequestHeaderException(
-      org.springframework.web.bind.MissingRequestHeaderException exception) {
+      MissingRequestHeaderException exception) {
     logger.warn("Missing request header: {}", exception.getHeaderName());
     return constructErrorResponse(
         HttpStatus.BAD_REQUEST,

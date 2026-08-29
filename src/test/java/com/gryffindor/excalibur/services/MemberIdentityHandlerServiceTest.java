@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.gryffindor.excalibur.config.FirebasePrincipal;
 import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.User;
+import com.gryffindor.excalibur.model.exception.AccountDisabledException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.repository.UserRepository;
 import java.util.Optional;
@@ -69,14 +70,58 @@ class MemberIdentityHandlerServiceTest {
   }
 
   @Test
-  void getLoggedInUser_throwsUserNotRegistered_whenNoLocalProfileExists() {
-    withPrincipal(new FirebasePrincipal("uid-ghost", "ghost@example.com", true));
+  void getLoggedInUser_returnsUser_whenUserExists() {
+    withPrincipal(new FirebasePrincipal("uid-1", "jdoe@example.com", true));
 
+    User user = new User();
+    user.setId("u1");
+    user.setFirstName("John");
+    user.setEmail("jdoe@example.com");
+    user.setPhoneNumber("9998887777");
+    user.setRole(Roles.USER);
+    when(userRepository.findByFirebaseUid("uid-1")).thenReturn(Optional.of(user));
+
+    User result = memberIdentityHandlerService.getLoggedInUser();
+
+    assertThat(result).isEqualTo(user);
+  }
+
+  @Test
+  void getLoggedInUser_throwsUserNotRegistered_whenUserNotFound() {
+    withPrincipal(new FirebasePrincipal("uid-ghost", "ghost@example.com", true));
     when(userRepository.findByFirebaseUid("uid-ghost")).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> memberIdentityHandlerService.getLoggedInUser())
         .isInstanceOf(UserNotRegisteredException.class)
         .hasMessageContaining("complete registration");
+  }
+
+  @Test
+  void getLoggedInUser_throwsAccountDisabled_whenUserIsDeactivated() {
+    withPrincipal(new FirebasePrincipal("uid-1", "user@example.com", true));
+
+    User user = new User();
+    user.setId("u1");
+    user.setStatus(User.Status.INACTIVE);
+    when(userRepository.findByFirebaseUid("uid-1")).thenReturn(Optional.of(user));
+
+    assertThatThrownBy(() -> memberIdentityHandlerService.getLoggedInUser())
+        .isInstanceOf(AccountDisabledException.class)
+        .hasMessageContaining("account has been deactivated");
+  }
+
+  @Test
+  void getLoggedInUser_throwsAccountDisabled_whenUserIsBlocked() {
+    withPrincipal(new FirebasePrincipal("uid-1", "user@example.com", true));
+
+    User user = new User();
+    user.setId("u1");
+    user.setStatus(User.Status.BLOCKED);
+    when(userRepository.findByFirebaseUid("uid-1")).thenReturn(Optional.of(user));
+
+    assertThatThrownBy(() -> memberIdentityHandlerService.getLoggedInUser())
+        .isInstanceOf(AccountDisabledException.class)
+        .hasMessageContaining("account has been blocked by an administrator");
   }
 
   @Test

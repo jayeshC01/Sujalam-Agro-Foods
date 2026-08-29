@@ -10,8 +10,19 @@ import lombok.*;
 @Entity
 @Data
 @EqualsAndHashCode(callSuper = false)
-@Table(name = "users")
+@Table(
+    name = "users",
+    indexes = {
+      @Index(name = "idx_users_email_status", columnList = "email, status"),
+      @Index(name = "idx_users_firebase_uid", columnList = "firebase_uid")
+    })
 public class User extends AuditStamp {
+
+  public enum Status {
+    ACTIVE,
+    INACTIVE,
+    BLOCKED
+  }
 
   @Id
   @Column(name = "id")
@@ -22,7 +33,7 @@ public class User extends AuditStamp {
   @NotBlank(message = "Firebase UID cannot be empty")
   private String firebaseUid;
 
-  @Column(name = "email", nullable = false, unique = true)
+  @Column(name = "email", nullable = false)
   @NotBlank(message = "Email cannot be empty")
   @Email(message = "Email must be a valid email address")
   private String email;
@@ -34,7 +45,7 @@ public class User extends AuditStamp {
   @Column(name = "last_name")
   private String lastName;
 
-  @Column(name = "phone_number", nullable = false, unique = true)
+  @Column(name = "phone_number", nullable = false)
   @NotBlank(message = "Phone number cannot be empty")
   private String phoneNumber;
 
@@ -42,6 +53,15 @@ public class User extends AuditStamp {
   @Enumerated(EnumType.STRING)
   private Roles role = Roles.USER;
 
-  @Column(name = "active", nullable = false)
-  private boolean active = true;
+  @Column(name = "status", nullable = false)
+  @Enumerated(EnumType.STRING)
+  private Status status = Status.ACTIVE;
+
+  public boolean isActive() {
+    return this.status == Status.ACTIVE;
+  }
+
+  public boolean isBlocked() {
+    return this.status == Status.BLOCKED;
+  }
 }

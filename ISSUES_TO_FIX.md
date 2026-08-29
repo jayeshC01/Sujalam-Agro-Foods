@@ -2,10 +2,6 @@
 
 Prioritized gap list from the MVP readiness scan. Not tracked in git — local working notes only.
 
-Replaces the earlier `KNOWN_ISSUES.md`; every still-open item from that file is carried over below
-and cross-referenced as `(was KNOWN_ISSUES #n)`.
-
----
 
 ## Minimum cut to MVP
 
@@ -13,8 +9,8 @@ Shortest line to "a frontend can be built against this and a real customer can o
 
 **P0-1 CORS → P0-2 env config → P0-3 Dockerfile/deploy → P0-4 admin bootstrap → P3-31 OpenAPI docs.**
 
-P2 is a hardening pass for the week after launch, except **P2-18** and **P2-19**, which are a few
-lines each and should be folded into the P0 work.
+P2 is a hardening pass for the week after launch, except **P2-19**, which is a few
+lines and should be folded into the P0 work.
 
 ---
 
@@ -59,34 +55,9 @@ render on an order-tracking screen.
 ### P1-12. Payment is COD hardcoded in email copy
 `Order` has no `paymentMode`/`paymentStatus` field at all. Even if COD-only is the MVP decision,
 model both fields now or you will be migrating live order rows later.
-
-### P1-13. No product search, filter, or sort
-`GET /products` is a raw page — no category filter, no name search, no in-stock-only.
-**Fix:** optional `category`/`q`/`inStock`/`sort` request params backed by a Specification or derived
-queries.
-
-### P1-14. No profile update, no saved addresses
-`RegisterUser` is write-once; no endpoint changes name or phone. Shipping address is re-typed on
-every order.
-**Fix:** `PUT /customer/me`, plus an `Address` book table keyed to the user.
-
-### P1-16. No idempotency on order creation
-A double-tap on "Place Order" creates two orders and decrements stock twice.
-**Fix:** accept an `Idempotency-Key` header, unique-indexed per user, returning the original order on
-replay.
-
-### P1-17. Products are hard-deleted
-`ProductService.deleteProduct` removes the row; anything referenced by order history must survive.
-**Fix:** soft delete via an `active` flag (same pattern already present on `User`), filtered out of
-the public catalog. Also resolves P2-23.
-
 ---
 
 ## P2 — Security & operations
-
-### P2-18. `User.active` is declared and never read
-Deactivating a user does nothing — they still authenticate and place orders.
-**Fix:** check it in `FirebaseAuthenticationFilter` / `MemberIdentityHandlerService.getLoggedInUser()`.
 
 ### P2-19. `emailVerified` is captured then ignored
 `FirebasePrincipal.emailVerified` is read off the token and never used. Unverified emails can
@@ -121,11 +92,6 @@ to make the intent explicit). Not exploitable from any known call site today —
 **Fix:** throw a domain-specific `InvalidOrderStatusTransitionException` from `applyStatusChange` and
 handle that instead of catching all of `IllegalArgumentException`.
 
-### P2-23. Product-delete FK violation returns a nonsensical message
-The FK violation is caught by the same `DataIntegrityViolationException` handler used for duplicate
-names, which always returns *"A record with the same unique value already exists."*
-*(was KNOWN_ISSUES #3)* — superseded if P1-17 (soft delete) lands.
-
 ### P2-25. No schema migrations
 `ddl-auto=update` is the migration strategy. The first production schema change is a coin flip.
 **Fix:** Flyway, baselined against the current schema, then `ddl-auto=validate`.
@@ -139,21 +105,6 @@ Public endpoints (`/products`, `/customer/register`) are unthrottled; no request
 ### P2-28. Live secrets in a plaintext file
 Brevo SMTP key, Firebase web API key, DB password in `application-local.properties`. Gitignored, so
 not leaked to git, but they belong in env vars / a secret manager before deploy.
-
-### P2-29. `/customer/orders` is unpaginated and returns 204 on empty
-Every other list endpoint returns an empty page. A customer with 500 orders pulls all of them, and
-the frontend has to special-case the shape.
-
-### P2-30. `POST /orders` returns 200, not 201
-
-### P2-36. Owner-or-admin authorization block duplicated in `OrderService`
-`getOrderById` (`OrderService.java:75-78`) and `cancelOrder` (`OrderService.java:175-178`) contain a
-byte-for-byte-identical authz check (fetch current user, compare role/owner, throw
-`AccessDeniedException`) — only the exception message differs. `MemberIdentityHandlerService`
-already centralizes the admin-only variant via `requireAdmin()`; a sibling
-`requireOwnerOrAdmin(ownerId, resourceName)` would collapse both call sites to one line and remove
-the risk of the two rules drifting apart (e.g. a future SUPPORT role added to one check and
-forgotten in the other). *(ultrareview nit, not an MVP blocker — quality/reuse only.)*
 
 ### P2-35. No regression guard for the lazy-loading contract
 The entire test suite is Mockito unit tests (80 tests, 0 failures). The only two Spring-context

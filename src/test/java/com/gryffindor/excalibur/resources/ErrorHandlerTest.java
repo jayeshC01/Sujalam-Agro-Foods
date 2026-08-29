@@ -3,6 +3,8 @@ package com.gryffindor.excalibur.resources;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import com.gryffindor.excalibur.model.exception.AccountDisabledException;
+import com.gryffindor.excalibur.model.exception.AuthenticationProviderException;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
@@ -18,6 +20,29 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 class ErrorHandlerTest {
 
   private final ErrorHandler errorHandler = new ErrorHandler();
+
+  @Test
+  void handleAccountDisabledException_returnsForbidden() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleAccountDisabledException(
+            new AccountDisabledException("Your account has been deactivated."));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage()).isEqualTo("Your account has been deactivated.");
+  }
+
+  @Test
+  void handleAuthenticationProviderException_returnsInternalServerError() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleAuthenticationProviderException(
+            new AuthenticationProviderException("Failed to reach auth provider"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage())
+        .isEqualTo("Failed to update authentication provider. Please try again later.");
+  }
 
   @Test
   void handleEntityNotFoundException_returnsNotFound() {

@@ -3,9 +3,9 @@ package com.gryffindor.excalibur.services;
 import com.gryffindor.excalibur.config.FirebasePrincipal;
 import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.User;
+import com.gryffindor.excalibur.model.exception.AccountDisabledException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.repository.UserRepository;
-import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -28,11 +28,22 @@ public class MemberIdentityHandlerService {
 
   public User getLoggedInUser() {
     String firebaseUid = getCurrentFirebasePrincipal().uid();
-    Optional<User> user = userRepository.findByFirebaseUid(firebaseUid);
-    return user.orElseThrow(
-        () ->
-            new UserNotRegisteredException(
-                "No profile found for this account. Please complete registration first."));
+    User user =
+        userRepository
+            .findByFirebaseUid(firebaseUid)
+            .orElseThrow(
+                () ->
+                    new UserNotRegisteredException(
+                        "No profile found for this account. Please complete registration first."));
+    if (user.getStatus() == User.Status.BLOCKED) {
+      throw new AccountDisabledException(
+          "Your account has been blocked by an administrator. Please contact support.");
+    }
+    if (!user.isActive()) {
+      throw new AccountDisabledException(
+          "Your account has been deactivated. Please contact support.");
+    }
+    return user;
   }
 
   public String getLoggedInMemberID() {
