@@ -36,6 +36,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -97,9 +98,16 @@ class OrderServiceTest {
     order.setOrderId("o1");
     order.setUser(user("u1"));
     Page<Order> page = new PageImpl<>(List.of(order), PageRequest.of(0, 10), 1);
-    when(orderRepository.findAll(PageRequest.of(0, 10))).thenReturn(page);
+    when(orderRepository.searchAdminOrders(
+            null,
+            null,
+            null,
+            null,
+            PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"))))
+        .thenReturn(page);
 
-    ResponseEntity<PageResponse<OrderResponse>> response = orderService.getAllOrders(0, 10);
+    ResponseEntity<PageResponse<OrderResponse>> response =
+        orderService.getAllOrders(null, null, null, 0, 10, "createdAt", "desc");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     PageResponse<OrderResponse> body = response.getBody();
@@ -108,18 +116,70 @@ class OrderServiceTest {
     assertThat(body.getContent().get(0).getId()).isEqualTo("o1");
     assertThat(body.getContent().get(0).getCustomer().getId()).isEqualTo("u1");
     assertThat(body.getTotalElements()).isEqualTo(1);
+    verify(memberIdentityHandlerService).requireAdmin();
+  }
+
+  @Test
+  void getAllOrders_withFiltersAndAscSort() {
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setUser(user("u1"));
+    Page<Order> page = new PageImpl<>(List.of(order), PageRequest.of(1, 20), 1);
+    java.time.LocalDate date = java.time.LocalDate.of(2026, 8, 29);
+    java.time.LocalDateTime start = date.atStartOfDay();
+    java.time.LocalDateTime end = date.atTime(java.time.LocalTime.MAX);
+    when(orderRepository.searchAdminOrders(
+            OrderStatus.PENDING,
+            "u1",
+            start,
+            end,
+            PageRequest.of(1, 20, Sort.by(Sort.Direction.ASC, "updatedAt"))))
+        .thenReturn(page);
+
+    ResponseEntity<PageResponse<OrderResponse>> response =
+        orderService.getAllOrders(OrderStatus.PENDING, "  u1  ", date, 1, 20, "updatedAt", "asc");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getContent()).hasSize(1);
+    verify(memberIdentityHandlerService).requireAdmin();
   }
 
   @Test
   void getAllOrders_returnsEmptyPage_whenEmpty() {
     Page<Order> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
-    when(orderRepository.findAll(PageRequest.of(0, 10))).thenReturn(page);
+    when(orderRepository.searchAdminOrders(
+            null,
+            null,
+            null,
+            null,
+            PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"))))
+        .thenReturn(page);
 
-    ResponseEntity<PageResponse<OrderResponse>> response = orderService.getAllOrders(0, 10);
+    ResponseEntity<PageResponse<OrderResponse>> response =
+        orderService.getAllOrders(null, null, null, 0, 10, "createdAt", "desc");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getContent()).isEmpty();
+    assertThat(response.getBody().getTotalElements()).isEqualTo(0);
+  }
+
+  @Test
+  void getAllOrders_throwsIllegalArgument_whenSortByIsInvalid() {
+    assertThatThrownBy(
+            () -> orderService.getAllOrders(null, null, null, 0, 10, "invalidField", "desc"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining(
+            "Invalid sortBy value: 'invalidField'. Allowed values: createdAt, updatedAt");
+  }
+
+  @Test
+  void getAllOrders_throwsIllegalArgument_whenSortDirectionIsInvalid() {
+    assertThatThrownBy(
+            () -> orderService.getAllOrders(null, null, null, 0, 10, "createdAt", "invalidDir"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid sort direction: 'invalidDir'");
   }
 
   @Test
@@ -129,7 +189,8 @@ class OrderServiceTest {
     order.setOrderId("o1");
     order.setUser(owner);
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
-    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(owner);
+    when(memberIdentityHandlerService.isAdmin()).thenReturn(false);
+    when(memberIdentityHandlerService.isOwner("u1")).thenReturn(true);
 
     ResponseEntity<OrderResponse> response = orderService.getOrderById("o1");
 
@@ -145,11 +206,7 @@ class OrderServiceTest {
     order.setOrderId("o1");
     order.setUser(owner);
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
-
-    User admin = new User();
-    admin.setId("admin1");
-    admin.setRole(Roles.ADMIN);
-    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(admin);
+    when(memberIdentityHandlerService.isAdmin()).thenReturn(true);
 
     ResponseEntity<OrderResponse> response = orderService.getOrderById("o1");
 
@@ -164,9 +221,8 @@ class OrderServiceTest {
     Order order = new Order();
     order.setUser(owner);
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
-
-    User requester = user("u2");
-    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(requester);
+    when(memberIdentityHandlerService.isAdmin()).thenReturn(false);
+    when(memberIdentityHandlerService.isOwner("u1")).thenReturn(false);
 
     assertThatThrownBy(() -> orderService.getOrderById("o1"))
         .isInstanceOf(AccessDeniedException.class);
@@ -380,7 +436,6 @@ class OrderServiceTest {
   @Test
   void cancelOrder_cancelsAndRestoresStock_whenRequestedByOwner() {
     User owner = user("u1");
-    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(owner);
 
     Product product = product("p1", "Cashews", "50.00", 8);
     Order order = new Order();
@@ -389,6 +444,8 @@ class OrderServiceTest {
     order.setUser(owner);
     order.setOrderDetails(List.of(orderDetail(product, 2)));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(memberIdentityHandlerService.isAdmin()).thenReturn(false);
+    when(memberIdentityHandlerService.isOwner("u1")).thenReturn(true);
     when(productRepository.incrementStock("p1", 2)).thenReturn(1);
 
     ResponseEntity<OrderResponse> response = orderService.cancelOrder("o1");
@@ -408,7 +465,8 @@ class OrderServiceTest {
     order.setUser(owner);
     order.setOrderDetails(List.of(orderDetail(product("p1", "Cashews", "50.00", 8), 2)));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
-    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user("u2"));
+    when(memberIdentityHandlerService.isAdmin()).thenReturn(false);
+    when(memberIdentityHandlerService.isOwner("u1")).thenReturn(false);
 
     assertThatThrownBy(() -> orderService.cancelOrder("o1"))
         .isInstanceOf(AccessDeniedException.class);
@@ -421,10 +479,6 @@ class OrderServiceTest {
 
   @Test
   void cancelOrder_isAllowedForAdmin_onAnotherCustomersOrder() {
-    User admin = user("admin1");
-    admin.setRole(Roles.ADMIN);
-    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(admin);
-
     Product product = product("p1", "Cashews", "50.00", 8);
     Order order = new Order();
     order.setOrderId("o1");
@@ -432,6 +486,7 @@ class OrderServiceTest {
     order.setUser(user("u1"));
     order.setOrderDetails(List.of(orderDetail(product, 2)));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(memberIdentityHandlerService.isAdmin()).thenReturn(true);
     when(productRepository.incrementStock("p1", 2)).thenReturn(1);
 
     ResponseEntity<OrderResponse> response = orderService.cancelOrder("o1");
@@ -443,7 +498,6 @@ class OrderServiceTest {
   @Test
   void cancelOrder_throwsIllegalArgument_whenOrderAlreadyCompleted() {
     User owner = user("u1");
-    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(owner);
 
     Order order = new Order();
     order.setOrderId("o1");
@@ -451,6 +505,8 @@ class OrderServiceTest {
     order.setUser(owner);
     order.setOrderDetails(List.of(orderDetail(product("p1", "Cashews", "50.00", 8), 2)));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(memberIdentityHandlerService.isAdmin()).thenReturn(false);
+    when(memberIdentityHandlerService.isOwner("u1")).thenReturn(true);
 
     assertThatThrownBy(() -> orderService.cancelOrder("o1"))
         .isInstanceOf(IllegalArgumentException.class)
@@ -463,7 +519,6 @@ class OrderServiceTest {
   @Test
   void cancelOrder_throwsIllegalArgument_whenOrderAlreadyCanceled() {
     User owner = user("u1");
-    when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(owner);
 
     Order order = new Order();
     order.setOrderId("o1");
@@ -471,6 +526,8 @@ class OrderServiceTest {
     order.setUser(owner);
     order.setOrderDetails(List.of(orderDetail(product("p1", "Cashews", "50.00", 8), 2)));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(memberIdentityHandlerService.isAdmin()).thenReturn(false);
+    when(memberIdentityHandlerService.isOwner("u1")).thenReturn(true);
 
     assertThatThrownBy(() -> orderService.cancelOrder("o1"))
         .isInstanceOf(IllegalArgumentException.class);
@@ -510,7 +567,7 @@ class OrderServiceTest {
 
     ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest, "test-idem-key-1");
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     OrderResponse body = response.getBody();
     assertThat(body.getOrderStatus()).isEqualTo(OrderStatus.PENDING);
     assertThat(body.getCustomer().getId()).isEqualTo("u1");
@@ -623,7 +680,7 @@ class OrderServiceTest {
 
     ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest, "test-idem-exact");
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     verify(productRepository).decrementStock("p1", 2);
   }
 
@@ -662,7 +719,7 @@ class OrderServiceTest {
     ResponseEntity<OrderResponse> response =
         orderService.addOrder(orderRequest, "test-idem-multi-1");
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     assertThat(response.getBody().getOrderDetails()).hasSize(2);
     assertThat(response.getBody().getSubTotal()).isEqualByComparingTo("110.00");
     assertThat(response.getBody().getTaxAmount()).isEqualByComparingTo("5.24");
@@ -745,7 +802,7 @@ class OrderServiceTest {
     ResponseEntity<OrderResponse> response =
         orderService.addOrder(orderRequest, "test-idem-dup-item");
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     assertThat(response.getBody().getOrderDetails()).hasSize(1);
     assertThat(response.getBody().getOrderDetails().get(0).getProductId()).isEqualTo("p1");
     assertThat(response.getBody().getOrderDetails().get(0).getOrderedQty()).isEqualTo(3);
@@ -780,7 +837,7 @@ class OrderServiceTest {
     ResponseEntity<OrderResponse> response =
         orderService.addOrder(orderRequest, "test-idem-sorted-locks");
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
     // Verify row locks / stock decrements are strictly executed in ascending sorted order: p1 then
     // p2
@@ -817,7 +874,7 @@ class OrderServiceTest {
     when(productRepository.decrementStock("p1", 2)).thenReturn(1);
     ResponseEntity<OrderResponse> responseA =
         orderService.addOrder(orderRequestA, "test-idem-cust-a");
-    assertThat(responseA.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(responseA.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
     when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(customerB);
     when(productRepository.decrementStock("p1", 2)).thenReturn(0);
@@ -827,28 +884,44 @@ class OrderServiceTest {
   }
 
   @Test
-  void getOrdersForCustomer_returnsOrders_whenNotEmpty() {
+  void getOrdersForCustomer_returnsPagedResponse_whenNotEmpty() {
     when(memberIdentityHandlerService.getLoggedInMemberID()).thenReturn("u1");
     Order order = new Order();
     order.setOrderId("o1");
     order.setUser(user("u1"));
-    when(orderRepository.getOrderByUserId("u1")).thenReturn(List.of(order));
+    Page<Order> page =
+        new PageImpl<>(
+            List.of(order), PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt")), 1);
+    when(orderRepository.findByUserId(
+            "u1", PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"))))
+        .thenReturn(page);
 
-    ResponseEntity<List<OrderResponse>> response = orderService.getOrdersForCustomer();
+    ResponseEntity<PageResponse<OrderResponse>> response = orderService.getOrdersForCustomer(0, 10);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).hasSize(1);
-    assertThat(response.getBody().get(0).getId()).isEqualTo("o1");
+    PageResponse<OrderResponse> body = response.getBody();
+    assertThat(body).isNotNull();
+    assertThat(body.getContent()).hasSize(1);
+    assertThat(body.getContent().get(0).getId()).isEqualTo("o1");
+    assertThat(body.getTotalElements()).isEqualTo(1);
   }
 
   @Test
-  void getOrdersForCustomer_returnsNoContent_whenEmpty() {
+  void getOrdersForCustomer_returnsEmptyPage_whenEmpty() {
     when(memberIdentityHandlerService.getLoggedInMemberID()).thenReturn("u1");
-    when(orderRepository.getOrderByUserId("u1")).thenReturn(List.of());
+    Page<Order> page =
+        new PageImpl<>(
+            List.of(), PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt")), 0);
+    when(orderRepository.findByUserId(
+            "u1", PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"))))
+        .thenReturn(page);
 
-    ResponseEntity<List<OrderResponse>> response = orderService.getOrdersForCustomer();
+    ResponseEntity<PageResponse<OrderResponse>> response = orderService.getOrdersForCustomer(0, 10);
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getContent()).isEmpty();
+    assertThat(response.getBody().getTotalElements()).isEqualTo(0);
   }
 
   @Test
@@ -874,7 +947,7 @@ class OrderServiceTest {
     ResponseEntity<OrderResponse> response =
         orderService.addOrder(orderRequest, "test-idem-free-del");
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     OrderResponse body = response.getBody();
     assertThat(body.getSubTotal()).isEqualByComparingTo("500.00");
     assertThat(body.getTaxAmount()).isEqualByComparingTo("23.81"); // 5% inclusive of 500
@@ -905,7 +978,7 @@ class OrderServiceTest {
     ResponseEntity<OrderResponse> response =
         orderService.addOrder(orderRequest, "test-idem-gst-rate");
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     OrderResponse body = response.getBody();
     assertThat(body.getSubTotal()).isEqualByComparingTo("112.00");
     assertThat(body.getTaxAmount()).isEqualByComparingTo("12.00"); // 112 * (0.12 / 1.12) = 12.00
@@ -1020,7 +1093,7 @@ class OrderServiceTest {
 
     ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest, "race-key-1");
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     assertThat(response.getBody().getId()).isEqualTo("ord-winner-99");
   }
 
@@ -1044,14 +1117,14 @@ class OrderServiceTest {
     when(orderRepository.findByUserIdAndIdempotencyKey("u1", "key-shared"))
         .thenReturn(Optional.empty());
     ResponseEntity<OrderResponse> response1 = orderService.addOrder(orderRequest, "key-shared");
-    assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
     // User 2 places order with SAME key-shared without being blocked
     when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user2);
     when(orderRepository.findByUserIdAndIdempotencyKey("u2", "key-shared"))
         .thenReturn(Optional.empty());
     ResponseEntity<OrderResponse> response2 = orderService.addOrder(orderRequest, "key-shared");
-    assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
     verify(orderRepository).findByUserIdAndIdempotencyKey("u1", "key-shared");
     verify(orderRepository).findByUserIdAndIdempotencyKey("u2", "key-shared");
@@ -1078,7 +1151,7 @@ class OrderServiceTest {
     ResponseEntity<OrderResponse> response =
         orderService.addOrder(orderRequest, "   key-trimmed   ");
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     verify(orderRepository).save(argThat(o -> "key-trimmed".equals(o.getIdempotencyKey())));
   }
 }

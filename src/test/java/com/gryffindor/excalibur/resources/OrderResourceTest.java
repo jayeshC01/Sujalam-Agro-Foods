@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
@@ -78,7 +79,7 @@ class OrderResourceTest {
   }
 
   @Test
-  @DisplayName("Get all orders returns ok")
+  @DisplayName("Get all orders returns ok for admin with default parameters")
   void getOrders_returnsOk() throws Exception {
     PageResponse<OrderResponse> pageResponse =
         PageResponse.<OrderResponse>builder()
@@ -90,27 +91,73 @@ class OrderResourceTest {
             .first(true)
             .last(true)
             .build();
-    when(orderService.getAllOrders(0, 10)).thenReturn(ResponseEntity.ok(pageResponse));
+    when(orderService.getAllOrders(null, null, null, 0, 10, "createdAt", "desc"))
+        .thenReturn(ResponseEntity.ok(pageResponse));
 
-    mockMvc.perform(get("/orders")).andExpect(status().isOk());
+    mockMvc.perform(get("/admin/orders")).andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("Get all orders returns ok with custom filters and sorting")
+  void getOrders_withFiltersAndSorting_returnsOk() throws Exception {
+    PageResponse<OrderResponse> pageResponse =
+        PageResponse.<OrderResponse>builder()
+            .content(List.of(sampleOrderResponse()))
+            .page(1)
+            .size(20)
+            .totalElements(1)
+            .totalPages(1)
+            .first(false)
+            .last(true)
+            .build();
+    when(orderService.getAllOrders(
+            OrderStatus.PENDING,
+            "u1",
+            java.time.LocalDate.of(2026, 8, 29),
+            1,
+            20,
+            "updatedAt",
+            "asc"))
+        .thenReturn(ResponseEntity.ok(pageResponse));
+
+    mockMvc
+        .perform(
+            get("/admin/orders")
+                .param("status", "PENDING")
+                .param("customerId", "u1")
+                .param("createdAt", "2026-08-29")
+                .param("page", "1")
+                .param("size", "20")
+                .param("sortBy", "updatedAt")
+                .param("sort", "asc"))
+        .andExpect(status().isOk());
   }
 
   @Test
   @DisplayName("Get orders for the logged in customer returns ok")
   void getCustomerOrders_returnsOk() throws Exception {
-    when(orderService.getOrdersForCustomer())
-        .thenReturn(ResponseEntity.ok(List.of(sampleOrderResponse())));
+    PageResponse<OrderResponse> pageResponse =
+        PageResponse.<OrderResponse>builder()
+            .content(List.of(sampleOrderResponse()))
+            .page(0)
+            .size(10)
+            .totalElements(1)
+            .totalPages(1)
+            .first(true)
+            .last(true)
+            .build();
+    when(orderService.getOrdersForCustomer(0, 10)).thenReturn(ResponseEntity.ok(pageResponse));
 
-    mockMvc.perform(get("/customer/orders")).andExpect(status().isOk());
+    mockMvc.perform(get("/orders")).andExpect(status().isOk());
   }
 
   @Test
-  @DisplayName("valid order request with Idempotency-Key header returns ok")
+  @DisplayName("valid order request with Idempotency-Key header returns 201 Created")
   void createOrder_withHeader_passesIdempotencyKey() throws Exception {
     OrderRequest orderRequest = new OrderRequest(List.of(validItem()), validAddress());
 
     when(orderService.addOrder(any(), org.mockito.ArgumentMatchers.eq("key-xyz-123")))
-        .thenReturn(ResponseEntity.ok(sampleOrderResponse()));
+        .thenReturn(new ResponseEntity<>(sampleOrderResponse(), HttpStatus.CREATED));
 
     mockMvc
         .perform(
@@ -118,7 +165,7 @@ class OrderResourceTest {
                 .header("Idempotency-Key", "key-xyz-123")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(orderRequest)))
-        .andExpect(status().isOk());
+        .andExpect(status().isCreated());
 
     verify(orderService).addOrder(any(), org.mockito.ArgumentMatchers.eq("key-xyz-123"));
   }

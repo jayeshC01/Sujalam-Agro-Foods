@@ -2,7 +2,6 @@ package com.gryffindor.excalibur.services;
 
 import com.gryffindor.excalibur.common.IdempotencyHelper;
 import com.gryffindor.excalibur.model.constants.OrderStatus;
-import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.Order;
 import com.gryffindor.excalibur.model.db.OrderDetails;
 import com.gryffindor.excalibur.model.db.Product;
@@ -18,6 +17,9 @@ import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +33,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -63,10 +67,58 @@ public class OrderService {
     this.idempotencyHelper = idempotencyHelper;
   }
 
+  private static final Map<String, String> SORT_FIELDS =
+      new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+  private static final Map<String, Sort.Direction> SORT_DIRECTIONS =
+      new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+
+  static {
+    SORT_FIELDS.put("createdAt", "createdAt");
+    SORT_FIELDS.put("updatedAt", "updatedAt");
+
+    SORT_DIRECTIONS.put("asc", Sort.Direction.ASC);
+    SORT_DIRECTIONS.put("desc", Sort.Direction.DESC);
+  }
+
+  private Sort createSort(String sortBy, String sortDirection) {
+    String trimmedSortBy = sortBy != null ? sortBy.trim() : "createdAt";
+    String property = SORT_FIELDS.get(trimmedSortBy);
+    if (property == null) {
+      throw new IllegalArgumentException(
+          "Invalid sortBy value: '" + sortBy + "'. Allowed values: createdAt, updatedAt");
+    }
+
+    String trimmedDirection = sortDirection != null ? sortDirection.trim() : "desc";
+    Sort.Direction direction = SORT_DIRECTIONS.get(trimmedDirection);
+    if (direction == null) {
+      throw new IllegalArgumentException(
+          "Invalid sort direction: '" + sortDirection + "'. Allowed values: asc, desc");
+    }
+
+    return Sort.by(direction, property);
+  }
+
   @Transactional(readOnly = true)
-  public ResponseEntity<PageResponse<OrderResponse>> getAllOrders(int page, int size) {
-    PageRequest pageRequest = PageRequest.of(page, size);
-    Page<Order> orders = orderRepository.findAll(pageRequest);
+  public ResponseEntity<PageResponse<OrderResponse>> getAllOrders(
+      OrderStatus status,
+      String customerId,
+      LocalDate createdAt,
+      int page,
+      int size,
+      String sortBy,
+      String sortDirection) {
+    memberIdentityHandlerService.requireAdmin();
+
+    LocalDateTime startDate = createdAt != null ? createdAt.atStartOfDay() : null;
+    LocalDateTime endDate = createdAt != null ? createdAt.atTime(LocalTime.MAX) : null;
+    String trimmedCustomerId =
+        (customerId != null && !customerId.isBlank()) ? customerId.trim() : null;
+
+    Sort sort = createSort(sortBy, sortDirection);
+    PageRequest pageRequest = PageRequest.of(page, size, sort);
+    Page<Order> orders =
+        orderRepository.searchAdminOrders(
+            status, trimmedCustomerId, startDate, endDate, pageRequest);
 
     List<OrderResponse> content = orders.getContent().stream().map(OrderResponse::from).toList();
     PageResponse<OrderResponse> pageResponse =
@@ -90,9 +142,8 @@ public class OrderService {
             .findById(id)
             .orElseThrow(() -> new EntityNotFoundException("Order with id " + id + " not found"));
 
-    User currentUser = memberIdentityHandlerService.getLoggedInUser();
-    if (currentUser.getRole() != Roles.ADMIN
-        && !order.getUser().getId().equals(currentUser.getId())) {
+    if (!memberIdentityHandlerService.isAdmin()
+        && !memberIdentityHandlerService.isOwner(order.getUser().getId())) {
       throw new AccessDeniedException("You are not allowed to view this order");
     }
 
@@ -132,7 +183,7 @@ public class OrderService {
         savedOrder.getGrandTotal());
 
     applicationEventPublisher.publishEvent(new OrderPlacedEvent(savedOrder));
-    return ResponseEntity.ok(OrderResponse.from(savedOrder));
+    return new ResponseEntity<>(OrderResponse.from(savedOrder), HttpStatus.CREATED);
   }
 
   private Order saveOrderSafely(Order order, String userId, String idempotencyKey) {
@@ -232,13 +283,25 @@ public class OrderService {
   }
 
   @Transactional(readOnly = true)
-  public ResponseEntity<List<OrderResponse>> getOrdersForCustomer() {
-    List<Order> orders =
-        orderRepository.getOrderByUserId(memberIdentityHandlerService.getLoggedInMemberID());
-    if (orders.isEmpty()) {
-      return ResponseEntity.noContent().build();
-    }
-    return ResponseEntity.ok(orders.stream().map(OrderResponse::from).toList());
+  public ResponseEntity<PageResponse<OrderResponse>> getOrdersForCustomer(int page, int size) {
+    PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+    Page<Order> orders =
+        orderRepository.findByUserId(
+            memberIdentityHandlerService.getLoggedInMemberID(), pageRequest);
+
+    List<OrderResponse> content = orders.getContent().stream().map(OrderResponse::from).toList();
+    PageResponse<OrderResponse> pageResponse =
+        PageResponse.<OrderResponse>builder()
+            .content(content)
+            .page(orders.getNumber())
+            .size(orders.getSize())
+            .totalElements(orders.getTotalElements())
+            .totalPages(orders.getTotalPages())
+            .first(orders.isFirst())
+            .last(orders.isLast())
+            .build();
+
+    return ResponseEntity.ok(pageResponse);
   }
 
   @Transactional
@@ -265,9 +328,8 @@ public class OrderService {
             .findById(id)
             .orElseThrow(() -> new EntityNotFoundException("Order with id " + id + " not found"));
 
-    User currentUser = memberIdentityHandlerService.getLoggedInUser();
-    if (currentUser.getRole() != Roles.ADMIN
-        && !order.getUser().getId().equals(currentUser.getId())) {
+    if (!memberIdentityHandlerService.isAdmin()
+        && !memberIdentityHandlerService.isOwner(order.getUser().getId())) {
       throw new AccessDeniedException("You are not allowed to cancel this order");
     }
 
