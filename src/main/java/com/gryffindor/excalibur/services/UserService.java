@@ -7,6 +7,7 @@ import com.gryffindor.excalibur.config.FirebasePrincipal;
 import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.model.exception.AuthenticationProviderException;
+import com.gryffindor.excalibur.model.exception.InvalidRequestException;
 import com.gryffindor.excalibur.model.request.RegisterUser;
 import com.gryffindor.excalibur.model.request.UpdateProfileRequest;
 import com.gryffindor.excalibur.model.response.CustomerResponse;
@@ -109,7 +110,7 @@ public class UserService {
   public ResponseEntity<Void> deleteSelf() {
     User currentUser = memberIdentityHandlerService.getLoggedInUser();
     if (currentUser.getRole() == Roles.ADMIN) {
-      throw new IllegalArgumentException("Admins cannot delete their own account");
+      throw new AccessDeniedException("Admins cannot delete their own account");
     }
     if (currentUser.getStatus() != User.Status.INACTIVE) {
       currentUser.setStatus(User.Status.INACTIVE);
@@ -124,7 +125,7 @@ public class UserService {
   public ResponseEntity<CustomerResponse> updateUserStatus(String id, User.Status status) {
     User currentUser = memberIdentityHandlerService.requireAdmin();
     if (currentUser.getId().equals(id) && status != User.Status.ACTIVE) {
-      throw new IllegalArgumentException("Admins cannot disable or block their own account");
+      throw new AccessDeniedException("Admins cannot disable or block their own account");
     }
 
     User target =
@@ -222,7 +223,7 @@ public class UserService {
           case "asc" -> Sort.Direction.ASC;
           case "desc" -> Sort.Direction.DESC;
           default ->
-              throw new IllegalArgumentException(
+              throw new InvalidRequestException(
                   "Invalid sort direction: '" + sortDirection + "'. Allowed values: asc, desc");
         };
 

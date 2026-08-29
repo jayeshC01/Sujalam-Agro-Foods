@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.exception.DuplicateProductException;
+import com.gryffindor.excalibur.model.exception.InvalidRequestException;
 import com.gryffindor.excalibur.model.request.ProductRequest;
 import com.gryffindor.excalibur.model.request.ProductUpdateRequest;
 import com.gryffindor.excalibur.model.response.PageResponse;
@@ -451,14 +452,14 @@ class ProductServiceTest {
   }
 
   @Test
-  @DisplayName("restockProduct throws IllegalArgumentException when quantity is zero or negative")
-  void restockProduct_throwsIllegalArgument_whenQuantityNonPositive() {
+  @DisplayName("restockProduct throws InvalidRequestException when quantity is zero or negative")
+  void restockProduct_throwsInvalidRequest_whenQuantityNonPositive() {
     assertThatThrownBy(() -> productService.restockProduct("p1", 0))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(InvalidRequestException.class)
         .hasMessageContaining("Restock quantity must be greater than 0");
 
     assertThatThrownBy(() -> productService.restockProduct("p1", -5))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(InvalidRequestException.class)
         .hasMessageContaining("Restock quantity must be greater than 0");
 
     verify(productRepository, never()).incrementStock(any(), any(Integer.class));
@@ -553,26 +554,26 @@ class ProductServiceTest {
   }
 
   @Test
-  @DisplayName("writeOffStock throws IllegalArgumentException when current stock is insufficient")
-  void writeOffStock_throwsIllegalArgument_whenInsufficientStock() {
+  @DisplayName("writeOffStock throws InvalidRequestException when current stock is insufficient")
+  void writeOffStock_throwsInvalidRequest_whenInsufficientStock() {
     product.setQty(3);
     when(productRepository.decrementStock("p1", 10)).thenReturn(0);
     when(productRepository.findById("p1")).thenReturn(Optional.of(product));
 
     assertThatThrownBy(() -> productService.writeOffStock("p1", 10))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(InvalidRequestException.class)
         .hasMessageContaining("Cannot write-off 10 unit(s)");
   }
 
   @Test
-  @DisplayName("writeOffStock throws IllegalArgumentException when quantity is zero or negative")
-  void writeOffStock_throwsIllegalArgument_whenQuantityNonPositive() {
+  @DisplayName("writeOffStock throws InvalidRequestException when quantity is zero or negative")
+  void writeOffStock_throwsInvalidRequest_whenQuantityNonPositive() {
     assertThatThrownBy(() -> productService.writeOffStock("p1", 0))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(InvalidRequestException.class)
         .hasMessageContaining("Write-off quantity must be greater than 0");
 
     assertThatThrownBy(() -> productService.writeOffStock("p1", -2))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(InvalidRequestException.class)
         .hasMessageContaining("Write-off quantity must be greater than 0");
 
     verify(productRepository, never()).decrementStock(any(), any(Integer.class));

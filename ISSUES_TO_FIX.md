@@ -64,22 +64,6 @@ model both fields now or you will be migrating live order rows later.
 register and order, and the confirmation mail goes to an unverified address.
 **Fix:** require a verified email at registration and at order creation.
 
-### P2-37. Global `IllegalArgumentException` handler leaks raw messages and hides server bugs
-`ErrorHandler.java:106-110` — the handler catches the *entire* `IllegalArgumentException`
-hierarchy and echoes `exception.getMessage()` straight back as a 400. That's broader than the one
-call site it was written for (`OrderService.applyStatusChange`, line 192): `NumberFormatException`,
-`Enum.valueOf`, `UUID.fromString`, Spring's `Assert.notNull`/`PageRequest.of` bounds checks, and
-Hibernate/Jackson edge cases all extend or throw `IllegalArgumentException`. Any of those now leak
-raw JDK/Spring internals to the client and get logged at WARN instead of ERROR — silently downgrading
-real server bugs out of 500-level alerting, and breaking the leak-hardening convention that
-`handleGenericRuntimeError`/`handleGenericError` deliberately enforce (guarded by
-`...returnsInternalServerErrorWithoutLeakingRawMessage` tests, which use a `password=hunter2` payload
-to make the intent explicit). Not exploitable from any known call site today — no other code throws
-`IllegalArgumentException` directly — so this is a latent hardening gap, not a live vulnerability.
-*(ultrareview nit, not an MVP blocker.)*
-**Fix:** throw a domain-specific `InvalidOrderStatusTransitionException` from `applyStatusChange` and
-handle that instead of catching all of `IllegalArgumentException`.
-
 ### P2-25. No schema migrations
 `ddl-auto=update` is the migration strategy. The first production schema change is a coin flip.
 **Fix:** Flyway, baselined against the current schema, then `ddl-auto=validate`.

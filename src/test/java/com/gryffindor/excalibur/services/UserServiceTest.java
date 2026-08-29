@@ -18,6 +18,7 @@ import com.gryffindor.excalibur.config.FirebasePrincipal;
 import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.model.exception.AuthenticationProviderException;
+import com.gryffindor.excalibur.model.exception.InvalidRequestException;
 import com.gryffindor.excalibur.model.request.RegisterUser;
 import com.gryffindor.excalibur.model.request.UpdateProfileRequest;
 import com.gryffindor.excalibur.model.response.CustomerResponse;
@@ -300,14 +301,14 @@ class UserServiceTest {
   }
 
   @Test
-  void deleteSelf_throwsIllegalArgument_whenAdminAttemptsSelfDelete() {
+  void deleteSelf_throwsAccessDenied_whenAdminAttemptsSelfDelete() {
     User admin = new User();
     admin.setId("admin1");
     admin.setRole(Roles.ADMIN);
     when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(admin);
 
     assertThatThrownBy(() -> service.deleteSelf())
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(AccessDeniedException.class)
         .hasMessageContaining("Admins cannot delete their own account");
   }
 
@@ -334,17 +335,17 @@ class UserServiceTest {
   }
 
   @Test
-  void updateUserStatus_throwsIllegalArgument_whenAdminDisablesOrBlocksThemselves() {
+  void updateUserStatus_throwsAccessDenied_whenAdminDisablesOrBlocksThemselves() {
     User admin = new User();
     admin.setId("admin1");
     when(memberIdentityHandlerService.requireAdmin()).thenReturn(admin);
 
     assertThatThrownBy(() -> service.updateUserStatus("admin1", User.Status.INACTIVE))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(AccessDeniedException.class)
         .hasMessageContaining("Admins cannot disable or block their own account");
 
     assertThatThrownBy(() -> service.updateUserStatus("admin1", User.Status.BLOCKED))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(AccessDeniedException.class)
         .hasMessageContaining("Admins cannot disable or block their own account");
   }
 
@@ -486,9 +487,9 @@ class UserServiceTest {
   }
 
   @Test
-  void getAllCustomers_throwsIllegalArgument_whenInvalidSortDirection() {
+  void getAllCustomers_throwsInvalidRequest_whenInvalidSortDirection() {
     assertThatThrownBy(() -> service.getAllCustomers(null, null, 0, 10, "sideways"))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(InvalidRequestException.class)
         .hasMessageContaining("Invalid sort direction: 'sideways'");
   }
 }
