@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -21,6 +22,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
  * Verifies the Firebase ID token sent as a Bearer token and populates the security context.
@@ -35,10 +37,15 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
 
   private final FirebaseAuth firebaseAuth;
   private final UserRepository userRepository;
+  private final HandlerExceptionResolver resolver;
 
-  public FirebaseAuthenticationFilter(FirebaseAuth firebaseAuth, UserRepository userRepository) {
+  public FirebaseAuthenticationFilter(
+      FirebaseAuth firebaseAuth,
+      UserRepository userRepository,
+      @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
     this.firebaseAuth = firebaseAuth;
     this.userRepository = userRepository;
+    this.resolver = resolver;
   }
 
   private String getBearerToken(HttpServletRequest request) {
@@ -76,6 +83,11 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
       } catch (FirebaseAuthException ex) {
         log.warn("Firebase token verification failed: {}", ex.getMessage());
         SecurityContextHolder.clearContext();
+      } catch (Exception ex) {
+        log.error("Unexpected error in authentication filter: {}", ex.getMessage(), ex);
+        SecurityContextHolder.clearContext();
+        resolver.resolveException(request, response, null, ex);
+        return;
       }
     }
     filterChain.doFilter(request, response);

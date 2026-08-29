@@ -64,18 +64,6 @@ model both fields now or you will be migrating live order rows later.
 register and order, and the confirmation mail goes to an unverified address.
 **Fix:** require a verified email at registration and at order creation.
 
-### P2-20. Filter-layer 401/403 bypass `ErrorHandler`
-No `AuthenticationEntryPoint`/`AccessDeniedHandler` is configured, so unauthenticated calls get
-Spring's default empty body instead of the app's `ErrorResponse` JSON — an inconsistent contract for
-the frontend.
-
-### P2-21. `FirebaseAuthenticationFilter` only catches `FirebaseAuthException`
-`FirebaseAuthenticationFilter.java:76` — a transient network error reaching Google's cert endpoint
-escapes the filter chain. Servlet filters run before the `DispatcherServlet`, so
-`@RestControllerAdvice` never sees it and the client gets a raw container error page.
-*(was KNOWN_ISSUES #6)*
-**Fix:** catch `Exception`, log, clear the context, and write the standard JSON error shape.
-
 ### P2-37. Global `IllegalArgumentException` handler leaks raw messages and hides server bugs
 `ErrorHandler.java:106-110` — the handler catches the *entire* `IllegalArgumentException`
 hierarchy and echoes `exception.getMessage()` straight back as a 400. That's broader than the one

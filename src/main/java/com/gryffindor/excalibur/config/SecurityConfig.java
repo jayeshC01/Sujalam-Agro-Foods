@@ -1,6 +1,7 @@
 package com.gryffindor.excalibur.config;
 
 import com.gryffindor.excalibur.model.constants.Roles;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -8,8 +9,11 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -17,9 +21,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
   private final FirebaseAuthenticationFilter firebaseAuthenticationFilter;
+  private final HandlerExceptionResolver resolver;
 
-  public SecurityConfig(FirebaseAuthenticationFilter firebaseAuthenticationFilter) {
+  public SecurityConfig(
+      FirebaseAuthenticationFilter firebaseAuthenticationFilter,
+      @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
     this.firebaseAuthenticationFilter = firebaseAuthenticationFilter;
+    this.resolver = resolver;
   }
 
   @Bean
@@ -27,6 +35,11 @@ public class SecurityConfig {
     http.csrf(csrf -> csrf.disable())
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .exceptionHandling(
+            exceptions ->
+                exceptions
+                    .authenticationEntryPoint(authenticationEntryPoint())
+                    .accessDeniedHandler(accessDeniedHandler()))
         .authorizeHttpRequests(
             requests ->
                 requests
@@ -42,5 +55,17 @@ public class SecurityConfig {
         .addFilterBefore(firebaseAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
+  }
+
+  @Bean
+  public AuthenticationEntryPoint authenticationEntryPoint() {
+    return (request, response, authException) ->
+        resolver.resolveException(request, response, null, authException);
+  }
+
+  @Bean
+  public AccessDeniedHandler accessDeniedHandler() {
+    return (request, response, accessDeniedException) ->
+        resolver.resolveException(request, response, null, accessDeniedException);
   }
 }

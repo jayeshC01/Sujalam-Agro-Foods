@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -30,11 +31,26 @@ public class ErrorHandler {
 
   private static final Logger logger = LoggerFactory.getLogger(ErrorHandler.class);
 
+  @ExceptionHandler(AuthenticationException.class)
+  public ResponseEntity<ErrorResponse> handleAuthenticationException(
+      AuthenticationException exception) {
+    logger.warn("Authentication failed: {}", exception.getMessage());
+    String message =
+        (exception.getMessage() != null && !exception.getMessage().isBlank())
+            ? exception.getMessage()
+            : "Authentication required. Please provide a valid Bearer token.";
+    return constructErrorResponse(HttpStatus.UNAUTHORIZED, message, null);
+  }
+
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<ErrorResponse> handleAccessDeniedException(
       AccessDeniedException exception) {
     logger.warn("Access denied: {}", exception.getMessage());
-    return constructErrorResponse(HttpStatus.FORBIDDEN, exception.getMessage(), null);
+    String message =
+        (exception.getMessage() != null && !exception.getMessage().isBlank())
+            ? exception.getMessage()
+            : "Access denied. You do not have permission to access this resource.";
+    return constructErrorResponse(HttpStatus.FORBIDDEN, message, null);
   }
 
   @ExceptionHandler(UserNotRegisteredException.class)
