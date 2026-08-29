@@ -69,6 +69,55 @@ class ErrorHandlerTest {
   }
 
   @Test
+  void handleAuthenticationException_returnsUnauthorizedWithCustomMessage() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleAuthenticationException(
+            new org.springframework.security.authentication.BadCredentialsException(
+                "Invalid token signature"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage()).isEqualTo("Invalid token signature");
+  }
+
+  @Test
+  void handleAuthenticationException_returnsUnauthorizedWithDefaultMessage_whenBlank() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleAuthenticationException(
+            new org.springframework.security.authentication.InsufficientAuthenticationException(
+                ""));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage())
+        .isEqualTo("Authentication required. Please provide a valid Bearer token.");
+  }
+
+  @Test
+  void handleAccessDeniedException_returnsForbiddenWithCustomMessage() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleAccessDeniedException(
+            new org.springframework.security.access.AccessDeniedException(
+                "Admins cannot delete their own account"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage()).isEqualTo("Admins cannot delete their own account");
+  }
+
+  @Test
+  void handleAccessDeniedException_returnsForbiddenWithDefaultMessage_whenBlank() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleAccessDeniedException(
+            new org.springframework.security.access.AccessDeniedException(""));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage())
+        .isEqualTo("Access denied. You do not have permission to access this resource.");
+  }
+
+  @Test
   void handleIllegalArgumentException_returnsBadRequest() {
     ResponseEntity<ErrorResponse> response =
         errorHandler.handleIllegalArgumentException(
