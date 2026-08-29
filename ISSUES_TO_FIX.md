@@ -84,9 +84,6 @@ handle that instead of catching all of `IllegalArgumentException`.
 `ddl-auto=update` is the migration strategy. The first production schema change is a coin flip.
 **Fix:** Flyway, baselined against the current schema, then `ddl-auto=validate`.
 
-### P2-26. No Actuator / health endpoint
-Cloud Run, Railway, ALB, and k8s all want a readiness probe. There isn't one.
-
 ### P2-27. No rate limiting
 Public endpoints (`/products`, `/customer/register`) are unthrottled; no request-size caps.
 

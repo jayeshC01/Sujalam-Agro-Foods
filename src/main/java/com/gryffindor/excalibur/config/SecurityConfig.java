@@ -43,6 +43,9 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             requests ->
                 requests
+                    // Actuator health and info probes for Cloud Run, Kubernetes, and load balancers.
+                    .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info")
+                    .permitAll()
                     // Public product catalog browsing.
                     .requestMatchers(HttpMethod.GET, "/product/**", "/products")
                     .permitAll()
