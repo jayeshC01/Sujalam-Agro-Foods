@@ -1,5 +1,6 @@
 package com.gryffindor.excalibur.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -11,6 +12,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 class SecurityConfigTest {
@@ -22,7 +25,48 @@ class SecurityConfigTest {
   void setUp() {
     resolver = mock(HandlerExceptionResolver.class);
     FirebaseAuthenticationFilter filter = mock(FirebaseAuthenticationFilter.class);
-    securityConfig = new SecurityConfig(filter, resolver);
+    RateLimitingFilter rateLimitingFilter = mock(RateLimitingFilter.class);
+    securityConfig =
+        new SecurityConfig(
+            filter,
+            rateLimitingFilter,
+            resolver,
+            "http://localhost:3000",
+            "http://admin.localhost:3000");
+  }
+
+  @Test
+  void corsConfigurationSource_setsExpectedPoliciesForCustomerEndpoints() {
+    CorsConfigurationSource source = securityConfig.corsConfigurationSource();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.setRequestURI("/products");
+
+    CorsConfiguration config = source.getCorsConfiguration(request);
+
+    assertThat(config).isNotNull();
+    assertThat(config.getAllowedOriginPatterns()).containsExactly("http://localhost:3000");
+    assertThat(config.getAllowedMethods())
+        .contains("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD");
+    assertThat(config.getAllowCredentials()).isTrue();
+    assertThat(config.getExposedHeaders())
+        .contains("X-Request-Id", "X-RateLimit-Remaining", "Retry-After");
+  }
+
+  @Test
+  void corsConfigurationSource_setsExpectedPoliciesForAdminEndpoints() {
+    CorsConfigurationSource source = securityConfig.corsConfigurationSource();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.setRequestURI("/admin/products");
+
+    CorsConfiguration config = source.getCorsConfiguration(request);
+
+    assertThat(config).isNotNull();
+    assertThat(config.getAllowedOriginPatterns()).containsExactly("http://admin.localhost:3000");
+    assertThat(config.getAllowedMethods())
+        .contains("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD");
+    assertThat(config.getAllowCredentials()).isTrue();
+    assertThat(config.getExposedHeaders())
+        .contains("X-Request-Id", "X-RateLimit-Remaining", "Retry-After");
   }
 
   @Test
