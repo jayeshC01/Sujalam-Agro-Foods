@@ -43,33 +43,12 @@ a documented, versioned SQL seed.
 `sql12.freesqldatabase.com` free shared tier. Fine for dev, not something to launch on.
 **Fix:** pick a managed MySQL (Cloud SQL / RDS / PlanetScale) before go-live.
 
----
-
-## P1 — Holes in the core order flow
-
-### P1-10. Order status model is too thin
-`PENDING → COMPLETED/CANCELED` only. No CONFIRMED/SHIPPED/OUT_FOR_DELIVERY, so there is nothing to
-render on an order-tracking screen.
-**Fix:** extend `OrderStatus` and its `canTransitionTo()` table.
-
-### P1-12. Payment is COD hardcoded in email copy
-`Order` has no `paymentMode`/`paymentStatus` field at all. Even if COD-only is the MVP decision,
-model both fields now or you will be migrating live order rows later.
----
 
 ## P2 — Security & operations
-
-### P2-19. `emailVerified` is captured then ignored
-`FirebasePrincipal.emailVerified` is read off the token and never used. Unverified emails can
-register and order, and the confirmation mail goes to an unverified address.
-**Fix:** require a verified email at registration and at order creation.
 
 ### P2-25. No schema migrations
 `ddl-auto=update` is the migration strategy. The first production schema change is a coin flip.
 **Fix:** Flyway, baselined against the current schema, then `ddl-auto=validate`.
-
-### P2-26. No Actuator / health endpoint
-Cloud Run, Railway, ALB, and k8s all want a readiness probe. There isn't one.
 
 ### P2-27. No rate limiting
 Public endpoints (`/products`, `/customer/register`) are unthrottled; no request-size caps.
