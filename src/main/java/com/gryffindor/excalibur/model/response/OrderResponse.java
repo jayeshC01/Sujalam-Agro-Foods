@@ -1,6 +1,8 @@
 package com.gryffindor.excalibur.model.response;
 
 import com.gryffindor.excalibur.model.constants.OrderStatus;
+import com.gryffindor.excalibur.model.constants.PaymentMethod;
+import com.gryffindor.excalibur.model.constants.PaymentStatus;
 import com.gryffindor.excalibur.model.db.Address;
 import com.gryffindor.excalibur.model.db.Order;
 import java.math.BigDecimal;
@@ -17,6 +19,8 @@ import lombok.NoArgsConstructor;
 public class OrderResponse {
   private String id;
   private OrderStatus orderStatus;
+  private PaymentMethod paymentMethod;
+  private PaymentStatus paymentStatus;
   private CustomerResponse customer;
   private BigDecimal subTotal;
   private BigDecimal taxAmount;
@@ -29,6 +33,8 @@ public class OrderResponse {
     return OrderResponse.builder()
         .id(order.getOrderId())
         .orderStatus(order.getOrderStatus())
+        .paymentMethod(order.getPaymentMethod())
+        .paymentStatus(order.getPaymentStatus())
         .customer(CustomerResponse.from(order.getUser()))
         .subTotal(order.getSubTotal())
         .taxAmount(order.getTaxAmount())

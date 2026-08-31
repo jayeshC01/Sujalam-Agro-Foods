@@ -3,12 +3,22 @@ package com.gryffindor.excalibur.services;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gryffindor.excalibur.common.IdempotencyHelper;
 import com.gryffindor.excalibur.model.constants.OrderStatus;
+import com.gryffindor.excalibur.model.constants.PaymentMethod;
+import com.gryffindor.excalibur.model.constants.PaymentStatus;
 import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.Address;
 import com.gryffindor.excalibur.model.db.Order;
@@ -17,10 +27,12 @@ import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.model.event.OrderPlacedEvent;
 import com.gryffindor.excalibur.model.event.OrderStatusUpdatedEvent;
+import com.gryffindor.excalibur.model.exception.EmailNotVerifiedException;
 import com.gryffindor.excalibur.model.exception.IdempotencyPayloadMismatchException;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.exception.InvalidOrderStatusTransitionException;
 import com.gryffindor.excalibur.model.exception.InvalidRequestException;
+import com.gryffindor.excalibur.model.exception.OrderCancellationNotAllowedException;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
 import com.gryffindor.excalibur.model.response.PageResponse;
@@ -28,14 +40,22 @@ import com.gryffindor.excalibur.repository.OrderRepository;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -56,8 +76,7 @@ class OrderServiceTest {
   @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   private ObjectMapper objectMapper = new ObjectMapper();
-  private com.gryffindor.excalibur.common.IdempotencyHelper idempotencyHelper =
-      new com.gryffindor.excalibur.common.IdempotencyHelper(objectMapper);
+  private IdempotencyHelper idempotencyHelper = new IdempotencyHelper(objectMapper);
   private OrderService orderService;
 
   @BeforeEach
@@ -71,9 +90,7 @@ class OrderServiceTest {
             idempotencyHelper);
     // addOrder() reads the saved order's fields back to build the response DTO; echo the
     // argument back the way a real save() would return the persisted (same) entity.
-    org.mockito.Mockito.lenient()
-        .when(orderRepository.save(org.mockito.Mockito.any()))
-        .thenAnswer(invocation -> invocation.getArgument(0));
+    lenient().when(orderRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
   }
 
   private Address address() {
@@ -128,11 +145,11 @@ class OrderServiceTest {
     order.setOrderId("o1");
     order.setUser(user("u1"));
     Page<Order> page = new PageImpl<>(List.of(order), PageRequest.of(1, 20), 1);
-    java.time.LocalDate date = java.time.LocalDate.of(2026, 8, 29);
-    java.time.LocalDateTime start = date.atStartOfDay();
-    java.time.LocalDateTime end = date.atTime(java.time.LocalTime.MAX);
+    LocalDate date = LocalDate.of(2026, 8, 29);
+    LocalDateTime start = date.atStartOfDay();
+    LocalDateTime end = date.atTime(LocalTime.MAX);
     when(orderRepository.searchAdminOrders(
-            OrderStatus.PENDING,
+            OrderStatus.PROCESSING,
             "u1",
             start,
             end,
@@ -140,7 +157,8 @@ class OrderServiceTest {
         .thenReturn(page);
 
     ResponseEntity<PageResponse<OrderResponse>> response =
-        orderService.getAllOrders(OrderStatus.PENDING, "  u1  ", date, 1, 20, "updatedAt", "asc");
+        orderService.getAllOrders(
+            OrderStatus.PROCESSING, "  u1  ", date, 1, 20, "updatedAt", "asc");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isNotNull();
@@ -247,7 +265,7 @@ class OrderServiceTest {
 
     Order order = new Order();
     order.setOrderId("o1");
-    order.setOrderStatus(OrderStatus.PENDING);
+    order.setOrderStatus(OrderStatus.SHIPPED);
     order.setUser(user("u1"));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
     when(orderRepository.save(order)).thenReturn(order);
@@ -306,7 +324,7 @@ class OrderServiceTest {
   }
 
   @Test
-  void updateOrderStatus_restoresStock_whenOrderIsCanceled() {
+  void updateOrderStatus_restoresStock_whenTransitioningToCanceled() {
     User admin = user("admin1");
     admin.setRole(Roles.ADMIN);
     when(memberIdentityHandlerService.requireAdmin()).thenReturn(admin);
@@ -314,7 +332,7 @@ class OrderServiceTest {
     Product product = product("p1", "Cashews", "50.00", 8);
     Order order = new Order();
     order.setOrderId("o1");
-    order.setOrderStatus(OrderStatus.PENDING);
+    order.setOrderStatus(OrderStatus.PROCESSING);
     order.setUser(user("u1"));
     order.setOrderDetails(List.of(orderDetail(product, 2)));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
@@ -339,7 +357,7 @@ class OrderServiceTest {
     Product product2 = product("p2", "Walnuts", "20.00", 5);
     Order order = new Order();
     order.setOrderId("o1");
-    order.setOrderStatus(OrderStatus.PENDING);
+    order.setOrderStatus(OrderStatus.PROCESSING);
     order.setUser(user("u1"));
     order.setOrderDetails(List.of(orderDetail(product1, 1), orderDetail(product2, 3)));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
@@ -362,15 +380,14 @@ class OrderServiceTest {
     Product product = product("p1", "Cashews", "50.00", 8);
     Order order = new Order();
     order.setOrderId("o1");
-    order.setOrderStatus(OrderStatus.PENDING);
+    order.setOrderStatus(OrderStatus.SHIPPED);
     order.setUser(user("u1"));
     order.setOrderDetails(List.of(orderDetail(product, 2)));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
 
     orderService.updateOrderStatus("o1", OrderStatus.COMPLETED);
 
-    verify(productRepository, org.mockito.Mockito.never())
-        .incrementStock(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt());
+    verify(productRepository, never()).incrementStock(anyString(), anyInt());
     verify(applicationEventPublisher).publishEvent(any(OrderStatusUpdatedEvent.class));
   }
 
@@ -391,8 +408,7 @@ class OrderServiceTest {
     assertThatThrownBy(() -> orderService.updateOrderStatus("o1", OrderStatus.CANCELED))
         .isInstanceOf(InvalidOrderStatusTransitionException.class);
 
-    verify(productRepository, org.mockito.Mockito.never())
-        .incrementStock(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt());
+    verify(productRepository, never()).incrementStock(anyString(), anyInt());
   }
 
   @Test
@@ -404,7 +420,7 @@ class OrderServiceTest {
     Product product = product("p1", "Cashews", "50.00", 8);
     Order order = new Order();
     order.setOrderId("o1");
-    order.setOrderStatus(OrderStatus.PENDING);
+    order.setOrderStatus(OrderStatus.PROCESSING);
     order.setUser(user("u1"));
     order.setOrderDetails(List.of(orderDetail(product, 2)));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
@@ -425,7 +441,7 @@ class OrderServiceTest {
 
     Order order = new Order();
     order.setOrderId("o1");
-    order.setOrderStatus(OrderStatus.PENDING);
+    order.setOrderStatus(OrderStatus.PROCESSING);
     order.setUser(user("u1"));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
 
@@ -437,13 +453,13 @@ class OrderServiceTest {
   }
 
   @Test
-  void cancelOrder_cancelsAndRestoresStock_whenRequestedByOwner() {
+  void cancelOrder_cancelsAndRestoresStock_whenRequestedByOwnerBeforePacked() {
     User owner = user("u1");
 
     Product product = product("p1", "Cashews", "50.00", 8);
     Order order = new Order();
     order.setOrderId("o1");
-    order.setOrderStatus(OrderStatus.PENDING);
+    order.setOrderStatus(OrderStatus.PROCESSING);
     order.setUser(owner);
     order.setOrderDetails(List.of(orderDetail(product, 2)));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
@@ -464,7 +480,7 @@ class OrderServiceTest {
     User owner = user("u1");
     Order order = new Order();
     order.setOrderId("o1");
-    order.setOrderStatus(OrderStatus.PENDING);
+    order.setOrderStatus(OrderStatus.PROCESSING);
     order.setUser(owner);
     order.setOrderDetails(List.of(orderDetail(product("p1", "Cashews", "50.00", 8), 2)));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
@@ -475,9 +491,8 @@ class OrderServiceTest {
         .isInstanceOf(AccessDeniedException.class);
 
     // Another customer's cancellation must not touch stock or the order's status.
-    verify(productRepository, org.mockito.Mockito.never())
-        .incrementStock(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt());
-    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.PENDING);
+    verify(productRepository, never()).incrementStock(anyString(), anyInt());
+    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.PROCESSING);
   }
 
   @Test
@@ -485,7 +500,7 @@ class OrderServiceTest {
     Product product = product("p1", "Cashews", "50.00", 8);
     Order order = new Order();
     order.setOrderId("o1");
-    order.setOrderStatus(OrderStatus.PENDING);
+    order.setOrderStatus(OrderStatus.PROCESSING);
     order.setUser(user("u1"));
     order.setOrderDetails(List.of(orderDetail(product, 2)));
     when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
@@ -499,7 +514,47 @@ class OrderServiceTest {
   }
 
   @Test
-  void cancelOrder_throwsForInvalidTransition_whenAlreadyCompleted() {
+  void cancelOrder_throwsOrderCancellationNotAllowed_whenOrderIsPacked() {
+    User owner = user("u1");
+
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.PACKED);
+    order.setUser(owner);
+    order.setOrderDetails(List.of(orderDetail(product("p1", "Cashews", "50.00", 8), 2)));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(memberIdentityHandlerService.isAdmin()).thenReturn(false);
+    when(memberIdentityHandlerService.isOwner("u1")).thenReturn(true);
+
+    assertThatThrownBy(() -> orderService.cancelOrder("o1"))
+        .isInstanceOf(OrderCancellationNotAllowedException.class)
+        .hasMessageContaining("Order cannot be cancelled once it has been packed or shipped");
+
+    verify(productRepository, never()).incrementStock(anyString(), anyInt());
+  }
+
+  @Test
+  void cancelOrder_throwsOrderCancellationNotAllowed_whenOrderIsShipped() {
+    User owner = user("u1");
+
+    Order order = new Order();
+    order.setOrderId("o1");
+    order.setOrderStatus(OrderStatus.SHIPPED);
+    order.setUser(owner);
+    order.setOrderDetails(List.of(orderDetail(product("p1", "Cashews", "50.00", 8), 2)));
+    when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+    when(memberIdentityHandlerService.isAdmin()).thenReturn(false);
+    when(memberIdentityHandlerService.isOwner("u1")).thenReturn(true);
+
+    assertThatThrownBy(() -> orderService.cancelOrder("o1"))
+        .isInstanceOf(OrderCancellationNotAllowedException.class)
+        .hasMessageContaining("Order cannot be cancelled once it has been packed or shipped");
+
+    verify(productRepository, never()).incrementStock(anyString(), anyInt());
+  }
+
+  @Test
+  void cancelOrder_throwsOrderCancellationNotAllowed_whenOrderAlreadyCompleted() {
     User owner = user("u1");
 
     Order order = new Order();
@@ -512,15 +567,14 @@ class OrderServiceTest {
     when(memberIdentityHandlerService.isOwner("u1")).thenReturn(true);
 
     assertThatThrownBy(() -> orderService.cancelOrder("o1"))
-        .isInstanceOf(InvalidOrderStatusTransitionException.class)
-        .hasMessageContaining("Invalid order status transition");
+        .isInstanceOf(OrderCancellationNotAllowedException.class)
+        .hasMessageContaining("Order cannot be cancelled once it has been packed or shipped");
 
-    verify(productRepository, org.mockito.Mockito.never())
-        .incrementStock(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt());
+    verify(productRepository, never()).incrementStock(anyString(), anyInt());
   }
 
   @Test
-  void cancelOrder_throwsForInvalidTransition_whenOrderAlreadyCanceled() {
+  void cancelOrder_throwsOrderCancellationNotAllowed_whenOrderAlreadyCanceled() {
     User owner = user("u1");
 
     Order order = new Order();
@@ -533,11 +587,10 @@ class OrderServiceTest {
     when(memberIdentityHandlerService.isOwner("u1")).thenReturn(true);
 
     assertThatThrownBy(() -> orderService.cancelOrder("o1"))
-        .isInstanceOf(InvalidOrderStatusTransitionException.class);
+        .isInstanceOf(OrderCancellationNotAllowedException.class);
 
     // Guards against a second cancellation crediting the same stock twice.
-    verify(productRepository, org.mockito.Mockito.never())
-        .incrementStock(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt());
+    verify(productRepository, never()).incrementStock(anyString(), anyInt());
   }
 
   @Test
@@ -546,6 +599,26 @@ class OrderServiceTest {
 
     assertThatThrownBy(() -> orderService.cancelOrder("missing"))
         .isInstanceOf(EntityNotFoundException.class);
+  }
+
+  @Test
+  void addOrder_throwsEmailNotVerifiedException_whenEmailNotVerified() {
+    OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
+    item.setProductId("p1");
+    item.setOrderedQty(1);
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
+
+    doThrow(
+            new EmailNotVerifiedException(
+                "Email is not verified. Please verify your email address and log in again."))
+        .when(memberIdentityHandlerService)
+        .requireVerifiedEmail();
+
+    assertThatThrownBy(() -> orderService.addOrder(orderRequest, "idem-unverified"))
+        .isInstanceOf(EmailNotVerifiedException.class)
+        .hasMessageContaining("Email is not verified");
+
+    verify(orderRepository, never()).save(any());
   }
 
   @Test
@@ -566,13 +639,15 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setOrderedQty(2);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest, "test-idem-key-1");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     OrderResponse body = response.getBody();
-    assertThat(body.getOrderStatus()).isEqualTo(OrderStatus.PENDING);
+    assertThat(body.getOrderStatus()).isEqualTo(OrderStatus.PROCESSING);
+    assertThat(body.getPaymentMethod()).isEqualTo(PaymentMethod.COD);
+    assertThat(body.getPaymentStatus()).isEqualTo(PaymentStatus.PENDING);
     assertThat(body.getCustomer().getId()).isEqualTo("u1");
     assertThat(body.getSubTotal()).isEqualByComparingTo("100.00");
     assertThat(body.getTaxAmount()).isEqualByComparingTo("4.76");
@@ -587,7 +662,9 @@ class OrderServiceTest {
         .save(
             argThat(
                 o ->
-                    o.getOrderStatus() == OrderStatus.PENDING
+                    o.getOrderStatus() == OrderStatus.PROCESSING
+                        && o.getPaymentMethod() == PaymentMethod.COD
+                        && o.getPaymentStatus() == PaymentStatus.PENDING
                         && o.getUser() == user
                         && o.getOrderDetails().size() == 1
                         && o.getSubTotal().compareTo(new BigDecimal("100.00")) == 0
@@ -607,12 +684,12 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("missing");
     item.setOrderedQty(1);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     assertThatThrownBy(() -> orderService.addOrder(orderRequest, "test-idem-missing"))
         .isInstanceOf(EntityNotFoundException.class);
 
-    verify(orderRepository, org.mockito.Mockito.never()).save(org.mockito.Mockito.any());
+    verify(orderRepository, never()).save(any());
   }
 
   @Test
@@ -625,13 +702,13 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setOrderedQty(1);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     assertThatThrownBy(() -> orderService.addOrder(orderRequest, "test-idem-inactive"))
         .isInstanceOf(EntityNotFoundException.class)
         .hasMessageContaining("Product p1 not found");
 
-    verify(orderRepository, org.mockito.Mockito.never()).save(org.mockito.Mockito.any());
+    verify(orderRepository, never()).save(any());
   }
 
   @Test
@@ -652,13 +729,13 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setOrderedQty(2);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     assertThatThrownBy(() -> orderService.addOrder(orderRequest, "test-idem-insufficient"))
         .isInstanceOf(InsufficientStockException.class)
         .hasMessageContaining("Insufficient stock");
 
-    verify(orderRepository, org.mockito.Mockito.never()).save(org.mockito.Mockito.any());
+    verify(orderRepository, never()).save(any());
   }
 
   @Test
@@ -679,7 +756,7 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setOrderedQty(2);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest, "test-idem-exact");
 
@@ -717,7 +794,8 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item2 = new OrderRequest.ProductRequest();
     item2.setProductId("p2");
     item2.setOrderedQty(3);
-    OrderRequest orderRequest = new OrderRequest(List.of(item1, item2), address());
+    OrderRequest orderRequest =
+        new OrderRequest(PaymentMethod.COD, List.of(item1, item2), address());
 
     ResponseEntity<OrderResponse> response =
         orderService.addOrder(orderRequest, "test-idem-multi-1");
@@ -769,14 +847,15 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item2 = new OrderRequest.ProductRequest();
     item2.setProductId("p2");
     item2.setOrderedQty(3);
-    OrderRequest orderRequest = new OrderRequest(List.of(item1, item2), address());
+    OrderRequest orderRequest =
+        new OrderRequest(PaymentMethod.COD, List.of(item1, item2), address());
 
     assertThatThrownBy(() -> orderService.addOrder(orderRequest, "test-idem-later-fail"))
         .isInstanceOf(InsufficientStockException.class);
 
     // The whole order must be rejected (relies on @Transactional rollback for product1's
     // already-applied decrement) — no partial order should ever be persisted.
-    verify(orderRepository, org.mockito.Mockito.never()).save(org.mockito.Mockito.any());
+    verify(orderRepository, never()).save(any());
   }
 
   @Test
@@ -800,7 +879,8 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item2 = new OrderRequest.ProductRequest();
     item2.setProductId("p1");
     item2.setOrderedQty(2);
-    OrderRequest orderRequest = new OrderRequest(List.of(item1, item2), address());
+    OrderRequest orderRequest =
+        new OrderRequest(PaymentMethod.COD, List.of(item1, item2), address());
 
     ResponseEntity<OrderResponse> response =
         orderService.addOrder(orderRequest, "test-idem-dup-item");
@@ -811,7 +891,7 @@ class OrderServiceTest {
     assertThat(response.getBody().getOrderDetails().get(0).getOrderedQty()).isEqualTo(3);
     assertThat(response.getBody().getOrderDetails().get(0).getSubTotal())
         .isEqualByComparingTo("30.00");
-    verify(productRepository, org.mockito.Mockito.times(1)).decrementStock("p1", 3);
+    verify(productRepository, times(1)).decrementStock("p1", 3);
   }
 
   @Test
@@ -835,7 +915,8 @@ class OrderServiceTest {
     OrderRequest.ProductRequest itemA = new OrderRequest.ProductRequest();
     itemA.setProductId("p1");
     itemA.setOrderedQty(1);
-    OrderRequest orderRequest = new OrderRequest(List.of(itemB, itemA), address());
+    OrderRequest orderRequest =
+        new OrderRequest(PaymentMethod.COD, List.of(itemB, itemA), address());
 
     ResponseEntity<OrderResponse> response =
         orderService.addOrder(orderRequest, "test-idem-sorted-locks");
@@ -844,7 +925,7 @@ class OrderServiceTest {
 
     // Verify row locks / stock decrements are strictly executed in ascending sorted order: p1 then
     // p2
-    org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(productRepository);
+    InOrder inOrder = inOrder(productRepository);
     inOrder.verify(productRepository).decrementStock("p1", 1);
     inOrder.verify(productRepository).decrementStock("p2", 1);
   }
@@ -870,8 +951,8 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setOrderedQty(2);
-    OrderRequest orderRequestA = new OrderRequest(List.of(item), address());
-    OrderRequest orderRequestB = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequestA = new OrderRequest(PaymentMethod.COD, List.of(item), address());
+    OrderRequest orderRequestB = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(customerA);
     when(productRepository.decrementStock("p1", 2)).thenReturn(1);
@@ -945,7 +1026,7 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setOrderedQty(1);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     ResponseEntity<OrderResponse> response =
         orderService.addOrder(orderRequest, "test-idem-free-del");
@@ -976,7 +1057,7 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setOrderedQty(1);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     ResponseEntity<OrderResponse> response =
         orderService.addOrder(orderRequest, "test-idem-gst-rate");
@@ -997,7 +1078,7 @@ class OrderServiceTest {
     Order existingOrder = new Order();
     existingOrder.setOrderId("ord-existing-1");
     existingOrder.setUser(user);
-    existingOrder.setOrderStatus(OrderStatus.PENDING);
+    existingOrder.setOrderStatus(OrderStatus.PROCESSING);
     existingOrder.setSubTotal(new BigDecimal("100.00"));
     existingOrder.setTaxAmount(new BigDecimal("4.76"));
     existingOrder.setDeliveryCharge(new BigDecimal("100.00"));
@@ -1007,14 +1088,14 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setOrderedQty(1);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     // Set matching request hash on existing order
     try {
       String json = objectMapper.writeValueAsString(orderRequest);
-      java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
-      byte[] hash = digest.digest(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-      existingOrder.setRequestHash(java.util.HexFormat.of().formatHex(hash));
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      byte[] hash = digest.digest(json.getBytes(StandardCharsets.UTF_8));
+      existingOrder.setRequestHash(HexFormat.of().formatHex(hash));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -1028,10 +1109,8 @@ class OrderServiceTest {
     assertThat(response.getBody().getId()).isEqualTo("ord-existing-1");
 
     // Stock was NEVER deducted and new order was NOT saved
-    verify(productRepository, org.mockito.Mockito.never())
-        .decrementStock(
-            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyInt());
-    verify(orderRepository, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
+    verify(productRepository, never()).decrementStock(anyString(), anyInt());
+    verify(orderRepository, never()).save(any());
   }
 
   @Test
@@ -1051,7 +1130,7 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setOrderedQty(1);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     assertThatThrownBy(() -> orderService.addOrder(orderRequest, "idem-key-1"))
         .isInstanceOf(IdempotencyPayloadMismatchException.class)
@@ -1071,7 +1150,7 @@ class OrderServiceTest {
     Order winnerOrder = new Order();
     winnerOrder.setOrderId("ord-winner-99");
     winnerOrder.setUser(user);
-    winnerOrder.setOrderStatus(OrderStatus.PENDING);
+    winnerOrder.setOrderStatus(OrderStatus.PROCESSING);
     winnerOrder.setSubTotal(new BigDecimal("100.00"));
     winnerOrder.setTaxAmount(new BigDecimal("4.76"));
     winnerOrder.setDeliveryCharge(new BigDecimal("100.00"));
@@ -1082,15 +1161,13 @@ class OrderServiceTest {
         .thenReturn(Optional.empty()) // first check: not found
         .thenReturn(Optional.of(winnerOrder)); // second check after race: found winner order
 
-    when(orderRepository.save(org.mockito.ArgumentMatchers.any()))
-        .thenThrow(
-            new org.springframework.dao.DataIntegrityViolationException(
-                "Duplicate key uk_orders_user_idempotency"));
+    when(orderRepository.save(any()))
+        .thenThrow(new DataIntegrityViolationException("Duplicate key uk_orders_user_idempotency"));
 
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setOrderedQty(1);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     ResponseEntity<OrderResponse> response = orderService.addOrder(orderRequest, "race-key-1");
 
@@ -1111,7 +1188,7 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setOrderedQty(1);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     // User 1 places order with key-shared
     when(memberIdentityHandlerService.getLoggedInUser()).thenReturn(user1);
@@ -1144,7 +1221,7 @@ class OrderServiceTest {
     OrderRequest.ProductRequest item = new OrderRequest.ProductRequest();
     item.setProductId("p1");
     item.setOrderedQty(1);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), address());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), address());
 
     when(orderRepository.findByUserIdAndIdempotencyKey("u1", "key-trimmed"))
         .thenReturn(Optional.empty());

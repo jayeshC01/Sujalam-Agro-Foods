@@ -43,11 +43,8 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             requests ->
                 requests
-                    // Public product catalog browsing.
                     .requestMatchers(HttpMethod.GET, "/product/**", "/products")
                     .permitAll()
-                    // Admin account creation is bootstrap-only: not exposed publicly, only an
-                    // existing admin may create another admin (see /admin/** rule below).
                     .requestMatchers("/admin/**")
                     .hasRole(Roles.ADMIN.name())
                     .anyRequest()

@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gryffindor.excalibur.model.db.Product;
+import com.gryffindor.excalibur.model.exception.DuplicateProductException;
 import com.gryffindor.excalibur.model.exception.InvalidRequestException;
 import com.gryffindor.excalibur.model.request.ProductRequest;
 import com.gryffindor.excalibur.model.request.ProductUpdateRequest;
@@ -253,9 +254,7 @@ class ProductResourceTest {
     ProductRequest product = validProduct();
 
     when(productService.addProduct(any()))
-        .thenThrow(
-            new com.gryffindor.excalibur.model.exception.DuplicateProductException(
-                "Product with name 'Rice' already exists"));
+        .thenThrow(new DuplicateProductException("Product with name 'Rice' already exists"));
 
     mockMvc
         .perform(

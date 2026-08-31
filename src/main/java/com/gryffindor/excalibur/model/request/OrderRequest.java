@@ -1,5 +1,6 @@
 package com.gryffindor.excalibur.model.request;
 
+import com.gryffindor.excalibur.model.constants.PaymentMethod;
 import com.gryffindor.excalibur.model.db.Address;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -15,6 +16,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderRequest {
+  @NotNull(message = "Payment method is required")
+  private PaymentMethod paymentMethod = PaymentMethod.COD;
+
   @Valid
   @NotEmpty(message = "Order must contain at least one product")
   private List<ProductRequest> product;
@@ -24,6 +28,8 @@ public class OrderRequest {
   private Address shippingAddress;
 
   @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
   public static class ProductRequest {
     @NotBlank(message = "Product id cannot be empty")
     private String productId;

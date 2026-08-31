@@ -4,10 +4,12 @@ import com.gryffindor.excalibur.config.RequestLoggingFilter;
 import com.gryffindor.excalibur.model.exception.AccountDisabledException;
 import com.gryffindor.excalibur.model.exception.AuthenticationProviderException;
 import com.gryffindor.excalibur.model.exception.DuplicateProductException;
+import com.gryffindor.excalibur.model.exception.EmailNotVerifiedException;
 import com.gryffindor.excalibur.model.exception.IdempotencyPayloadMismatchException;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.exception.InvalidOrderStatusTransitionException;
 import com.gryffindor.excalibur.model.exception.InvalidRequestException;
+import com.gryffindor.excalibur.model.exception.OrderCancellationNotAllowedException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -43,6 +45,20 @@ public class ErrorHandler {
             ? exception.getMessage()
             : "Authentication required. Please provide a valid Bearer token.";
     return constructErrorResponse(HttpStatus.UNAUTHORIZED, message, null);
+  }
+
+  @ExceptionHandler(EmailNotVerifiedException.class)
+  public ResponseEntity<ErrorResponse> handleEmailNotVerifiedException(
+      EmailNotVerifiedException exception) {
+    logger.warn("Unverified email operation rejected: {}", exception.getMessage());
+    return constructErrorResponse(HttpStatus.FORBIDDEN, exception.getMessage(), null);
+  }
+
+  @ExceptionHandler(OrderCancellationNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleOrderCancellationNotAllowedException(
+      OrderCancellationNotAllowedException exception) {
+    logger.warn("Order cancellation rejected: {}", exception.getMessage());
+    return constructErrorResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), null);
   }
 
   @ExceptionHandler(AccessDeniedException.class)

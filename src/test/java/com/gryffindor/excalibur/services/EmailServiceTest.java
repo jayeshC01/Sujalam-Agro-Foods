@@ -1,15 +1,21 @@
 package com.gryffindor.excalibur.services;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.gryffindor.excalibur.model.constants.OrderStatus;
+import com.gryffindor.excalibur.model.constants.PaymentMethod;
+import com.gryffindor.excalibur.model.constants.PaymentStatus;
 import com.gryffindor.excalibur.model.db.Address;
 import com.gryffindor.excalibur.model.db.Order;
 import com.gryffindor.excalibur.model.db.OrderDetails;
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.db.User;
+import com.gryffindor.excalibur.model.event.OrderPlacedEvent;
+import com.gryffindor.excalibur.model.event.OrderStatusUpdatedEvent;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import java.math.BigDecimal;
@@ -19,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.MailSendException;
@@ -79,7 +86,9 @@ class EmailServiceTest {
     sampleOrder = new Order();
     sampleOrder.setOrderId("ORD-12345");
     sampleOrder.setUser(user);
-    sampleOrder.setOrderStatus(OrderStatus.PENDING);
+    sampleOrder.setOrderStatus(OrderStatus.PROCESSING);
+    sampleOrder.setPaymentMethod(PaymentMethod.UPI);
+    sampleOrder.setPaymentStatus(PaymentStatus.PAID);
     sampleOrder.setOrderDetails(List.of(orderDetail));
     sampleOrder.setSubTotal(new BigDecimal("400.00"));
     sampleOrder.setTaxAmount(new BigDecimal("19.05"));
@@ -93,6 +102,12 @@ class EmailServiceTest {
   void sendOrderConfirmationEmail_sendsToCustomer() {
     emailService.sendOrderConfirmationEmail(sampleOrder);
 
+    ArgumentCaptor<Context> contextCaptor = ArgumentCaptor.forClass(Context.class);
+    verify(templateEngine).process(eq("mail/order-confirmation"), contextCaptor.capture());
+    Order contextOrder = (Order) contextCaptor.getValue().getVariable("order");
+    assertThat(contextOrder.getPaymentMethod()).isEqualTo(PaymentMethod.UPI);
+    assertThat(contextOrder.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+
     verify(mailSender).send(any(MimeMessage.class));
   }
 
@@ -100,6 +115,12 @@ class EmailServiceTest {
   @DisplayName("sendNewOrderAdminNotification sends alert to admin email")
   void sendNewOrderAdminNotification_sendsToAdmin() {
     emailService.sendNewOrderAdminNotification(sampleOrder);
+
+    ArgumentCaptor<Context> contextCaptor = ArgumentCaptor.forClass(Context.class);
+    verify(templateEngine).process(eq("mail/admin-order-alert"), contextCaptor.capture());
+    Order contextOrder = (Order) contextCaptor.getValue().getVariable("order");
+    assertThat(contextOrder.getPaymentMethod()).isEqualTo(PaymentMethod.UPI);
+    assertThat(contextOrder.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
 
     verify(mailSender).send(any(MimeMessage.class));
   }
@@ -134,8 +155,7 @@ class EmailServiceTest {
   @Test
   @DisplayName("handleOrderPlacedEvent sends both confirmation and admin alert")
   void handleOrderPlacedEvent_dispatchesBothCustomerAndAdminEmails() {
-    emailService.handleOrderPlacedEvent(
-        new com.gryffindor.excalibur.model.event.OrderPlacedEvent(sampleOrder));
+    emailService.handleOrderPlacedEvent(new OrderPlacedEvent(sampleOrder));
 
     // verify both customer confirmation and admin alert emails were sent
     verify(mailSender, times(2)).send(any(MimeMessage.class));
@@ -145,8 +165,7 @@ class EmailServiceTest {
   @DisplayName("handleOrderStatusUpdatedEvent sends status update email to customer")
   void handleOrderStatusUpdatedEvent_dispatchesStatusEmail() {
     emailService.handleOrderStatusUpdatedEvent(
-        new com.gryffindor.excalibur.model.event.OrderStatusUpdatedEvent(
-            sampleOrder, OrderStatus.COMPLETED));
+        new OrderStatusUpdatedEvent(sampleOrder, OrderStatus.COMPLETED));
 
     verify(mailSender).send(any(MimeMessage.class));
   }
@@ -156,8 +175,7 @@ class EmailServiceTest {
   void sendOrderConfirmationEmail_propagatesMailExceptionForRetry() {
     doThrow(new MailSendException("SMTP error")).when(mailSender).send(any(MimeMessage.class));
 
-    org.assertj.core.api.Assertions.assertThatThrownBy(
-            () -> emailService.sendOrderConfirmationEmail(sampleOrder))
+    assertThatThrownBy(() -> emailService.sendOrderConfirmationEmail(sampleOrder))
         .isInstanceOf(MailSendException.class);
   }
 
@@ -168,10 +186,7 @@ class EmailServiceTest {
     doThrow(new MailSendException("SMTP down")).when(mailSender).send(any(MimeMessage.class));
 
     assertThatNoException()
-        .isThrownBy(
-            () ->
-                emailService.handleOrderPlacedEvent(
-                    new com.gryffindor.excalibur.model.event.OrderPlacedEvent(sampleOrder)));
+        .isThrownBy(() -> emailService.handleOrderPlacedEvent(new OrderPlacedEvent(sampleOrder)));
   }
 
   @Test

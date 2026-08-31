@@ -3,12 +3,15 @@ package com.gryffindor.excalibur.services;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.firebase.auth.FirebaseAuth;
 import com.gryffindor.excalibur.config.FirebasePrincipal;
 import com.gryffindor.excalibur.model.constants.Roles;
 import com.gryffindor.excalibur.model.db.User;
 import com.gryffindor.excalibur.model.exception.AccountDisabledException;
+import com.gryffindor.excalibur.model.exception.EmailNotVerifiedException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.repository.UserRepository;
 import java.util.Optional;
@@ -27,12 +30,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 class MemberIdentityHandlerServiceTest {
 
   @Mock private UserRepository userRepository;
+  @Mock private FirebaseAuth firebaseAuth;
 
   private MemberIdentityHandlerService memberIdentityHandlerService;
 
   @BeforeEach
   void setUp() {
-    memberIdentityHandlerService = new MemberIdentityHandlerService(userRepository);
+    memberIdentityHandlerService = new MemberIdentityHandlerService(userRepository, firebaseAuth);
   }
 
   @AfterEach
@@ -207,5 +211,25 @@ class MemberIdentityHandlerServiceTest {
     assertThatThrownBy(() -> memberIdentityHandlerService.requireAdmin())
         .isInstanceOf(AccessDeniedException.class)
         .hasMessageContaining("You are not allowed to access this resource");
+  }
+
+  @Test
+  void requireVerifiedEmail_doesNotThrow_whenEmailIsVerified() {
+    withPrincipal(new FirebasePrincipal("uid-1", "user@example.com", true));
+
+    memberIdentityHandlerService.requireVerifiedEmail();
+  }
+
+  @Test
+  void requireVerifiedEmail_throwsEmailNotVerifiedException_whenEmailIsNotVerified()
+      throws Exception {
+    withPrincipal(new FirebasePrincipal("uid-1", "user@example.com", false));
+
+    assertThatThrownBy(() -> memberIdentityHandlerService.requireVerifiedEmail())
+        .isInstanceOf(EmailNotVerifiedException.class)
+        .hasMessageContaining(
+            "Email is not verified. Please verify your email address and log in again.");
+
+    verify(firebaseAuth).revokeRefreshTokens("uid-1");
   }
 }

@@ -2,6 +2,8 @@ package com.gryffindor.excalibur.model.db;
 
 import com.gryffindor.excalibur.model.common.AuditStamp;
 import com.gryffindor.excalibur.model.constants.OrderStatus;
+import com.gryffindor.excalibur.model.constants.PaymentMethod;
+import com.gryffindor.excalibur.model.constants.PaymentStatus;
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
@@ -11,6 +13,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.hibernate.annotations.Check;
 
 @Entity
 @Data
@@ -43,7 +46,24 @@ public class Order extends AuditStamp implements Serializable {
 
   @Column(name = "order_status", nullable = false)
   @Enumerated(EnumType.STRING)
+  @Check(
+      name = "chk_orders_status_valid",
+      constraints = "order_status IN ('PROCESSING', 'PACKED', 'SHIPPED', 'COMPLETED', 'CANCELED')")
   private OrderStatus orderStatus;
+
+  @Column(name = "payment_method", nullable = false)
+  @Enumerated(EnumType.STRING)
+  @Check(
+      name = "chk_orders_payment_method_valid",
+      constraints = "payment_method IN ('COD', 'UPI', 'CARD')")
+  private PaymentMethod paymentMethod = PaymentMethod.COD;
+
+  @Column(name = "payment_status", nullable = false)
+  @Enumerated(EnumType.STRING)
+  @Check(
+      name = "chk_orders_payment_status_valid",
+      constraints = "payment_status IN ('PENDING', 'PAID', 'FAILED')")
+  private PaymentStatus paymentStatus = PaymentStatus.PENDING;
 
   @ManyToOne
   @JoinColumn(name = "customer_id", referencedColumnName = "id", nullable = false)

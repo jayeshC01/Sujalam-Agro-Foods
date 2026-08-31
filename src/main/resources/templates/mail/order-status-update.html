@@ -24,7 +24,8 @@
             </div>
 
             <p style="font-size: 14px; color: #555555; margin-bottom: 20px;">
-                <strong>Order ID:</strong> #<span th:text="${order.orderId}">ORD-12345</span>
+                <strong>Order ID:</strong> #<span th:text="${order.orderId}">ORD-12345</span> | 
+                <strong>Payment:</strong> <span th:text="${order.paymentMethod}">COD</span> (<span th:text="${order.paymentStatus}">PENDING</span>)
             </p>
 
             <!-- Items Table -->
