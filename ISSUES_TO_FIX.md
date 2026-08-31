@@ -16,12 +16,6 @@ lines and should be folded into the P0 work.
 
 ## P0 — Blocks shipping at all
 
-### P0-1. No CORS configuration
-Nothing in `SecurityConfig.java` or a `WebMvcConfigurer`. Any browser frontend is blocked on every
-request. Single biggest thing making the API unusable from a real client.
-**Fix:** `CorsConfigurationSource` bean + `http.cors(...)` in the security chain, allowed origins
-driven by a property so local/staging/prod differ.
-
 ### P0-2. No deployable configuration
 `application.properties` carries no datasource URL, mail credentials, or Firebase key — they exist
 only in the gitignored `application-local.properties`. No env-var binding, no prod profile. The app
@@ -39,19 +33,11 @@ deploy has no working admin and the step is not reproducible. *(was KNOWN_ISSUES
 **Fix:** one-shot bootstrap — a startup seeding hook keyed on a `BOOTSTRAP_ADMIN_EMAIL` env var, or
 a documented, versioned SQL seed.
 
-### P0-5. Production database
-`sql12.freesqldatabase.com` free shared tier. Fine for dev, not something to launch on.
-**Fix:** pick a managed MySQL (Cloud SQL / RDS / PlanetScale) before go-live.
-
-
 ## P2 — Security & operations
 
 ### P2-25. No schema migrations
 `ddl-auto=update` is the migration strategy. The first production schema change is a coin flip.
 **Fix:** Flyway, baselined against the current schema, then `ddl-auto=validate`.
-
-### P2-27. No rate limiting
-Public endpoints (`/products`, `/customer/register`) are unthrottled; no request-size caps.
 
 ### P2-28. Live secrets in a plaintext file
 Brevo SMTP key, Firebase web API key, DB password in `application-local.properties`. Gitignored, so
