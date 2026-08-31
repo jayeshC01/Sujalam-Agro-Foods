@@ -35,10 +35,12 @@ public interface ProductRepository extends JpaRepository<Product, String> {
       Pageable pageable);
 
   @Modifying(clearAutomatically = true)
-  @Query("UPDATE Product p SET p.qty = p.qty - :quantity WHERE p.id = :id AND p.qty >= :quantity")
+  @Query(
+      "UPDATE Product p SET p.qty = p.qty - :quantity, p.updatedAt = CURRENT_TIMESTAMP, p.version = COALESCE(p.version, 0) + 1 WHERE p.id = :id AND p.qty >= :quantity")
   int decrementStock(@Param("id") String id, @Param("quantity") int quantity);
 
   @Modifying(clearAutomatically = true)
-  @Query("UPDATE Product p SET p.qty = p.qty + :quantity WHERE p.id = :id AND p.status = 'ACTIVE'")
+  @Query(
+      "UPDATE Product p SET p.qty = p.qty + :quantity, p.updatedAt = CURRENT_TIMESTAMP, p.version = COALESCE(p.version, 0) + 1 WHERE p.id = :id AND p.status = 'ACTIVE'")
   int incrementStock(@Param("id") String id, @Param("quantity") int quantity);
 }

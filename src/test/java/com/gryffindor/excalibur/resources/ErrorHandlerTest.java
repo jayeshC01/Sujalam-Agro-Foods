@@ -5,9 +5,12 @@ import static org.mockito.Mockito.mock;
 
 import com.gryffindor.excalibur.model.exception.AccountDisabledException;
 import com.gryffindor.excalibur.model.exception.AuthenticationProviderException;
+import com.gryffindor.excalibur.model.exception.DuplicateProductException;
+import com.gryffindor.excalibur.model.exception.EmailNotVerifiedException;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.exception.InvalidOrderStatusTransitionException;
 import com.gryffindor.excalibur.model.exception.InvalidRequestException;
+import com.gryffindor.excalibur.model.exception.OrderCancellationNotAllowedException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -21,6 +24,9 @@ import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 
 class ErrorHandlerTest {
 
@@ -77,8 +83,7 @@ class ErrorHandlerTest {
   void handleAuthenticationException_returnsUnauthorizedWithCustomMessage() {
     ResponseEntity<ErrorResponse> response =
         errorHandler.handleAuthenticationException(
-            new org.springframework.security.authentication.BadCredentialsException(
-                "Invalid token signature"));
+            new BadCredentialsException("Invalid token signature"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     assertThat(response.getBody()).isNotNull();
@@ -88,9 +93,7 @@ class ErrorHandlerTest {
   @Test
   void handleAuthenticationException_returnsUnauthorizedWithDefaultMessage_whenBlank() {
     ResponseEntity<ErrorResponse> response =
-        errorHandler.handleAuthenticationException(
-            new org.springframework.security.authentication.InsufficientAuthenticationException(
-                ""));
+        errorHandler.handleAuthenticationException(new InsufficientAuthenticationException(""));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     assertThat(response.getBody()).isNotNull();
@@ -102,8 +105,7 @@ class ErrorHandlerTest {
   void handleAccessDeniedException_returnsForbiddenWithCustomMessage() {
     ResponseEntity<ErrorResponse> response =
         errorHandler.handleAccessDeniedException(
-            new org.springframework.security.access.AccessDeniedException(
-                "Admins cannot delete their own account"));
+            new AccessDeniedException("Admins cannot delete their own account"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     assertThat(response.getBody()).isNotNull();
@@ -113,8 +115,7 @@ class ErrorHandlerTest {
   @Test
   void handleAccessDeniedException_returnsForbiddenWithDefaultMessage_whenBlank() {
     ResponseEntity<ErrorResponse> response =
-        errorHandler.handleAccessDeniedException(
-            new org.springframework.security.access.AccessDeniedException(""));
+        errorHandler.handleAccessDeniedException(new AccessDeniedException(""));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     assertThat(response.getBody()).isNotNull();
@@ -163,9 +164,8 @@ class ErrorHandlerTest {
 
   @Test
   void handleDuplicateProductException_returnsConflictWithMessage() {
-    com.gryffindor.excalibur.model.exception.DuplicateProductException exception =
-        new com.gryffindor.excalibur.model.exception.DuplicateProductException(
-            "Product with name 'Rice' already exists");
+    DuplicateProductException exception =
+        new DuplicateProductException("Product with name 'Rice' already exists");
 
     ResponseEntity<ErrorResponse> response =
         errorHandler.handleDuplicateProductException(exception);
@@ -256,5 +256,32 @@ class ErrorHandlerTest {
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getMessage())
         .isEqualTo("Malformed request body. Please check the request and try again.");
+  }
+
+  @Test
+  void handleEmailNotVerifiedException_returnsForbidden() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleEmailNotVerifiedException(
+            new EmailNotVerifiedException(
+                "Email is not verified. Please verify your email address and log in again."));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage())
+        .isEqualTo("Email is not verified. Please verify your email address and log in again.");
+  }
+
+  @Test
+  void handleOrderCancellationNotAllowedException_returnsBadRequest() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleOrderCancellationNotAllowedException(
+            new OrderCancellationNotAllowedException(
+                "Order cannot be cancelled once it has been packed or shipped. Current status: PACKED"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage())
+        .isEqualTo(
+            "Order cannot be cancelled once it has been packed or shipped. Current status: PACKED");
   }
 }

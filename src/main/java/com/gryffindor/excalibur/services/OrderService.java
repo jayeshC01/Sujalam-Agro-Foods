@@ -2,6 +2,8 @@ package com.gryffindor.excalibur.services;
 
 import com.gryffindor.excalibur.common.IdempotencyHelper;
 import com.gryffindor.excalibur.model.constants.OrderStatus;
+import com.gryffindor.excalibur.model.constants.PaymentMethod;
+import com.gryffindor.excalibur.model.constants.PaymentStatus;
 import com.gryffindor.excalibur.model.db.Order;
 import com.gryffindor.excalibur.model.db.OrderDetails;
 import com.gryffindor.excalibur.model.db.Product;
@@ -11,6 +13,7 @@ import com.gryffindor.excalibur.model.event.OrderStatusUpdatedEvent;
 import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.exception.InvalidOrderStatusTransitionException;
 import com.gryffindor.excalibur.model.exception.InvalidRequestException;
+import com.gryffindor.excalibur.model.exception.OrderCancellationNotAllowedException;
 import com.gryffindor.excalibur.model.request.OrderRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
 import com.gryffindor.excalibur.model.response.PageResponse;
@@ -154,6 +157,7 @@ public class OrderService {
 
   @Transactional
   public ResponseEntity<OrderResponse> addOrder(OrderRequest orderRequest, String idempotencyKey) {
+    memberIdentityHandlerService.requireVerifiedEmail();
     User user = memberIdentityHandlerService.getLoggedInUser();
     String trimmedKey = idempotencyKey.trim();
     String requestHash = idempotencyHelper.computeSha256(orderRequest);
@@ -202,7 +206,10 @@ public class OrderService {
   private Order buildOrder(
       User user, OrderRequest request, String idempotencyKey, String requestHash) {
     Order order = new Order();
-    order.setOrderStatus(OrderStatus.PENDING);
+    order.setOrderStatus(OrderStatus.PROCESSING);
+    order.setPaymentMethod(
+        request.getPaymentMethod() != null ? request.getPaymentMethod() : PaymentMethod.COD);
+    order.setPaymentStatus(PaymentStatus.PENDING);
     order.setUser(user);
     order.setShippingAddress(request.getShippingAddress());
     order.setIdempotencyKey(idempotencyKey);
@@ -255,7 +262,7 @@ public class OrderService {
 
       subTotal = subTotal.add(itemSubTotal);
 
-      // Reverse calculate inclusive GST
+      // Calculate inclusive GST
       BigDecimal rate = product.getGstRate();
       if (rate != null && rate.compareTo(BigDecimal.ZERO) > 0) {
         BigDecimal divisor = BigDecimal.ONE.add(rate);
@@ -318,11 +325,7 @@ public class OrderService {
     return ResponseEntity.ok(OrderResponse.from(applyStatusChange(order, status)));
   }
 
-  /**
-   * Lets a customer call off their own order. Orders are never deleted - cancellation is a status
-   * change, so the order stays queryable as business and audit history and its line items keep
-   * pointing at the products they were bought at.
-   */
+  /** Cancels an order and restores product stock. */
   @Transactional
   public ResponseEntity<OrderResponse> cancelOrder(String id) {
     Order order =
@@ -335,14 +338,16 @@ public class OrderService {
       throw new AccessDeniedException("You are not allowed to cancel this order");
     }
 
+    if (!memberIdentityHandlerService.isAdmin()
+        && !order.getOrderStatus().isCancellableByCustomer()) {
+      throw new OrderCancellationNotAllowedException(
+          "Order cannot be cancelled once it has been packed or shipped. Current status: "
+              + order.getOrderStatus());
+    }
+
     return ResponseEntity.ok(OrderResponse.from(applyStatusChange(order, OrderStatus.CANCELED)));
   }
 
-  /**
-   * Shared transition path for both the admin status update and a customer cancellation: validates
-   * the move against {@link OrderStatus#canTransitionTo}, puts stock back on the way into CANCELED,
-   * and persists. Callers are responsible for authorization before calling this.
-   */
   private Order applyStatusChange(Order order, OrderStatus status) {
     OrderStatus previousStatus = order.getOrderStatus();
     if (!previousStatus.canTransitionTo(status)) {

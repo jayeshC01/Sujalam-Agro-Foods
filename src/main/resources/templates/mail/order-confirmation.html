@@ -15,11 +15,12 @@
 
         <div style="padding: 24px;">
             <p style="font-size: 16px; margin-top: 0;">Hi <span th:text="${order.user.firstName}">Customer</span>,</p>
-            <p style="line-height: 1.5; color: #555555;">Thank you for shopping with us! Your order has been placed successfully and will be paid via <strong>Cash on Delivery (COD)</strong>.</p>
+            <p style="line-height: 1.5; color: #555555;">Thank you for shopping with us! Your order has been placed successfully and payment mode is <strong th:text="${order.paymentMethod}">COD</strong> (<span th:text="${order.paymentStatus}">PENDING</span>).</p>
             
             <div style="background-color: #f8fafc; border-left: 4px solid #2e7d32; padding: 12px 16px; margin: 18px 0; border-radius: 0 4px 4px 0;">
                 <p style="margin: 0; font-size: 14px; color: #333333;">
-                    <strong>Order ID:</strong> #<span th:text="${order.orderId}">ORD-12345</span>
+                    <strong>Order ID:</strong> #<span th:text="${order.orderId}">ORD-12345</span> | 
+                    <strong>Payment:</strong> <span th:text="${order.paymentMethod}">COD</span> (<span th:text="${order.paymentStatus}">PENDING</span>)
                 </p>
             </div>
 

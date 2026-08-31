@@ -2,6 +2,7 @@ package com.gryffindor.excalibur.resources;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gryffindor.excalibur.model.constants.OrderStatus;
+import com.gryffindor.excalibur.model.constants.PaymentMethod;
 import com.gryffindor.excalibur.model.db.Address;
 import com.gryffindor.excalibur.model.exception.InvalidOrderStatusTransitionException;
 import com.gryffindor.excalibur.model.request.OrderRequest;
@@ -20,6 +22,7 @@ import com.gryffindor.excalibur.model.request.UpdateOrderStatusRequest;
 import com.gryffindor.excalibur.model.response.OrderResponse;
 import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.services.OrderService;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -112,19 +115,13 @@ class OrderResourceTest {
             .last(true)
             .build();
     when(orderService.getAllOrders(
-            OrderStatus.PENDING,
-            "u1",
-            java.time.LocalDate.of(2026, 8, 29),
-            1,
-            20,
-            "updatedAt",
-            "asc"))
+            OrderStatus.PROCESSING, "u1", LocalDate.of(2026, 8, 29), 1, 20, "updatedAt", "asc"))
         .thenReturn(ResponseEntity.ok(pageResponse));
 
     mockMvc
         .perform(
             get("/admin/orders")
-                .param("status", "PENDING")
+                .param("status", "PROCESSING")
                 .param("customerId", "u1")
                 .param("createdAt", "2026-08-29")
                 .param("page", "1")
@@ -155,9 +152,10 @@ class OrderResourceTest {
   @Test
   @DisplayName("valid order request with Idempotency-Key header returns 201 Created")
   void createOrder_withHeader_passesIdempotencyKey() throws Exception {
-    OrderRequest orderRequest = new OrderRequest(List.of(validItem()), validAddress());
+    OrderRequest orderRequest =
+        new OrderRequest(PaymentMethod.COD, List.of(validItem()), validAddress());
 
-    when(orderService.addOrder(any(), org.mockito.ArgumentMatchers.eq("key-xyz-123")))
+    when(orderService.addOrder(any(), eq("key-xyz-123")))
         .thenReturn(new ResponseEntity<>(sampleOrderResponse(), HttpStatus.CREATED));
 
     mockMvc
@@ -168,13 +166,14 @@ class OrderResourceTest {
                 .content(objectMapper.writeValueAsString(orderRequest)))
         .andExpect(status().isCreated());
 
-    verify(orderService).addOrder(any(), org.mockito.ArgumentMatchers.eq("key-xyz-123"));
+    verify(orderService).addOrder(any(), eq("key-xyz-123"));
   }
 
   @Test
   @DisplayName("order request without Idempotency-Key header returns 400 Bad Request")
   void createOrder_withoutHeader_returnsBadRequest() throws Exception {
-    OrderRequest orderRequest = new OrderRequest(List.of(validItem()), validAddress());
+    OrderRequest orderRequest =
+        new OrderRequest(PaymentMethod.COD, List.of(validItem()), validAddress());
 
     mockMvc
         .perform(
@@ -230,7 +229,7 @@ class OrderResourceTest {
   @Test
   @DisplayName("Request with empty product list is rejected")
   void emptyProductList_isRejected() throws Exception {
-    OrderRequest orderRequest = new OrderRequest(List.of(), validAddress());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(), validAddress());
 
     mockMvc
         .perform(
@@ -249,7 +248,7 @@ class OrderResourceTest {
   void blankProductId_isRejected() throws Exception {
     OrderRequest.ProductRequest item = validItem();
     item.setProductId(" ");
-    OrderRequest orderRequest = new OrderRequest(List.of(item), validAddress());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), validAddress());
 
     mockMvc
         .perform(
@@ -268,7 +267,7 @@ class OrderResourceTest {
   void nonPositiveQuantity_isRejected() throws Exception {
     OrderRequest.ProductRequest item = validItem();
     item.setOrderedQty(0);
-    OrderRequest orderRequest = new OrderRequest(List.of(item), validAddress());
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(item), validAddress());
 
     mockMvc
         .perform(
@@ -285,7 +284,7 @@ class OrderResourceTest {
   @Test
   @DisplayName("Request with missing shipping address is rejected")
   void missingShippingAddress_isRejected() throws Exception {
-    OrderRequest orderRequest = new OrderRequest(List.of(validItem()), null);
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(validItem()), null);
 
     mockMvc
         .perform(
@@ -304,7 +303,7 @@ class OrderResourceTest {
   void blankRecipientNameInAddress_isRejected() throws Exception {
     Address address = validAddress();
     address.setRecipientName(" ");
-    OrderRequest orderRequest = new OrderRequest(List.of(validItem()), address);
+    OrderRequest orderRequest = new OrderRequest(PaymentMethod.COD, List.of(validItem()), address);
 
     mockMvc
         .perform(

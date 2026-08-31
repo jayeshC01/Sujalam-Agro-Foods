@@ -245,27 +245,34 @@ public class EmailService {
 
   private String getStatusMessage(OrderStatus status) {
     return switch (status) {
+      case PROCESSING -> "Your order has been received and is currently being <b>processed</b>.";
+      case PACKED -> "Your order has been carefully <b>packed</b> and prepared for dispatch.";
+      case SHIPPED ->
+          "Your order has been <b>shipped</b> and is on the way to your delivery address.";
       case COMPLETED ->
           "Your order has been <b>delivered and completed</b>. We hope you enjoy your purchase!";
       case CANCELED ->
           "Your order has been <b>cancelled</b>. Any reserved product stock has been restored.";
-      case PENDING -> "Your order is currently <b>pending confirmation</b>.";
     };
   }
 
   private String getStatusColor(OrderStatus status) {
     return switch (status) {
+      case PROCESSING -> "#ef6c00";
+      case PACKED -> "#1565c0";
+      case SHIPPED -> "#0277bd";
       case COMPLETED -> "#2e7d32";
       case CANCELED -> "#c62828";
-      case PENDING -> "#ef6c00";
     };
   }
 
   private String formatStatusName(OrderStatus status) {
     return switch (status) {
+      case PROCESSING -> "Processing";
+      case PACKED -> "Packed";
+      case SHIPPED -> "Shipped";
       case COMPLETED -> "Completed / Delivered";
       case CANCELED -> "Cancelled";
-      case PENDING -> "Pending";
     };
   }
 }
