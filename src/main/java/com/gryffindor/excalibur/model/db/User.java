@@ -10,12 +10,7 @@ import lombok.*;
 @Entity
 @Data
 @EqualsAndHashCode(callSuper = false)
-@Table(
-    name = "users",
-    indexes = {
-      @Index(name = "idx_users_email_status", columnList = "email, status"),
-      @Index(name = "idx_users_firebase_uid", columnList = "firebase_uid")
-    })
+@Table(name = "users")
 public class User extends AuditStamp {
 
   public enum Status {

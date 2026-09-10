@@ -13,9 +13,7 @@ import lombok.ToString;
 @Entity
 @Data
 @EqualsAndHashCode(callSuper = false)
-@Table(
-    name = "order_details",
-    indexes = {@Index(name = "idx_order_details_order_id", columnList = "order_id")})
+@Table(name = "order_details")
 public class OrderDetails extends AuditStamp {
 
   @Id
