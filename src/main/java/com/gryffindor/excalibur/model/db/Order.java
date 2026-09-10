@@ -13,24 +13,11 @@ import java.math.BigDecimal;
 import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.hibernate.annotations.Check;
 
 @Entity
 @Data
 @EqualsAndHashCode(callSuper = false)
-@Table(
-    name = "orders",
-    uniqueConstraints = {
-      @UniqueConstraint(
-          name = "uk_orders_user_idempotency",
-          columnNames = {"customer_id", "idempotency_key"})
-    },
-    indexes = {
-      @Index(name = "idx_orders_customer_id", columnList = "customer_id"),
-      @Index(name = "idx_orders_idempotency_key", columnList = "idempotency_key"),
-      @Index(name = "idx_orders_status", columnList = "order_status"),
-      @Index(name = "idx_orders_created_at", columnList = "created_at")
-    })
+@Table(name = "orders")
 public class Order extends AuditStamp implements Serializable {
 
   @Id
@@ -44,25 +31,16 @@ public class Order extends AuditStamp implements Serializable {
   @Column(name = "request_hash", nullable = false, length = 64)
   private String requestHash;
 
-  @Column(name = "order_status", nullable = false)
+  @Column(name = "order_status", nullable = false, length = 32)
   @Enumerated(EnumType.STRING)
-  @Check(
-      name = "chk_orders_status_valid",
-      constraints = "order_status IN ('PROCESSING', 'PACKED', 'SHIPPED', 'COMPLETED', 'CANCELED')")
   private OrderStatus orderStatus;
 
-  @Column(name = "payment_method", nullable = false)
+  @Column(name = "payment_method", nullable = false, length = 32)
   @Enumerated(EnumType.STRING)
-  @Check(
-      name = "chk_orders_payment_method_valid",
-      constraints = "payment_method IN ('COD', 'UPI', 'CARD')")
   private PaymentMethod paymentMethod = PaymentMethod.COD;
 
-  @Column(name = "payment_status", nullable = false)
+  @Column(name = "payment_status", nullable = false, length = 32)
   @Enumerated(EnumType.STRING)
-  @Check(
-      name = "chk_orders_payment_status_valid",
-      constraints = "payment_status IN ('PENDING', 'PAID', 'FAILED')")
   private PaymentStatus paymentStatus = PaymentStatus.PENDING;
 
   @ManyToOne

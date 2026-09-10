@@ -13,11 +13,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 public abstract class AuditStamp {
 
   @CreationTimestamp
-  @Column(name = "created_at", nullable = false, updatable = false, columnDefinition = "datetime")
+  @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
   @UpdateTimestamp
-  @Column(name = "updated_at", nullable = false, columnDefinition = "datetime")
+  @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
 
   @Version
