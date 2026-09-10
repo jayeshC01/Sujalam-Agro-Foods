@@ -33,3 +33,7 @@ out/
 .vscode/
 
 application-local.properties
+.env
+.env.local
+*.env
+!.env.example

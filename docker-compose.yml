@@ -1,0 +1,61 @@
+services:
+  tidb:
+    image: pingcap/tidb:v8.1.0
+    container_name: sujalam-tidb-local
+    command:
+      - --store=unistore
+      - --path=/tmp/tidb
+    ports:
+      - "4000:4000"
+      - "10080:10080"
+    volumes:
+      - tidb_data:/tmp/tidb
+    environment:
+      - TZ=Asia/Kolkata
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:10080/status || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sujalam-backend-app
+    depends_on:
+      tidb:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=${DB_URL:-jdbc:mysql://tidb:4000/test?useSSL=false&allowPublicKeyRetrieval=true}
+      - SPRING_DATASOURCE_USERNAME=${DB_USER:-root}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-}
+      - SPRING_MAIL_HOST=${SPRING_MAIL_HOST:-localhost}
+      - SPRING_MAIL_PORT=${SPRING_MAIL_PORT:-1025}
+      - SPRING_MAIL_USERNAME=${SPRING_MAIL_USERNAME:-}
+      - SPRING_MAIL_PASSWORD=${SPRING_MAIL_PASSWORD:-}
+      - APP_MAIL_FROM=${APP_MAIL_FROM:-noreply@sujalam.com}
+      - APP_MAIL_ADMIN=${APP_MAIL_ADMIN:-admin@sujalam.com}
+      - MANAGEMENT_HEALTH_MAIL_ENABLED=${MANAGEMENT_HEALTH_MAIL_ENABLED:-false}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/firebase-adminsdk.json
+      - TZ=${TZ:-Asia/Kolkata}
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-/Users/jc/secrets/sujalam-agro-foods-firebase-adminsdk.json}:/app/secrets/firebase-adminsdk.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  tidb_data:
+    name: sujalam_tidb_data

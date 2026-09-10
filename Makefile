@@ -1,7 +1,7 @@
 GRADLE := ./gradlew
 JACOCO_HTML := build/reports/jacoco/test/html/index.html
 
-.PHONY: build test format
+.PHONY: build test format start stop logs
 
 build:
 	$(GRADLE) spotlessApply
@@ -14,3 +14,12 @@ test:
 
 format:
 	$(GRADLE) spotlessApply
+
+start:
+	docker compose up -d --build
+
+stop:
+	docker compose down
+
+logs:
+	docker compose logs -f
