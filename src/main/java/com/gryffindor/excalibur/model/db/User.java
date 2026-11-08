@@ -40,8 +40,7 @@ public class User extends AuditStamp {
   @Column(name = "last_name")
   private String lastName;
 
-  @Column(name = "phone_number", nullable = false)
-  @NotBlank(message = "Phone number cannot be empty")
+  @Column(name = "phone_number")
   private String phoneNumber;
 
   @Column(name = "role", nullable = false)

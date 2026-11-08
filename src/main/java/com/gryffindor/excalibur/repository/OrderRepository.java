@@ -3,6 +3,7 @@ package com.gryffindor.excalibur.repository;
 import com.gryffindor.excalibur.model.constants.OrderStatus;
 import com.gryffindor.excalibur.model.db.Order;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -42,4 +43,10 @@ public interface OrderRepository extends JpaRepository<Order, String> {
       @Param("startDate") LocalDateTime startDate,
       @Param("endDate") LocalDateTime endDate,
       Pageable pageable);
+
+  @Query(
+      "SELECT COUNT(o) > 0 FROM Order o JOIN o.orderDetails d "
+          + "WHERE d.product.id = :productId AND o.orderStatus IN :statuses")
+  boolean existsByProductIdAndOrderStatusIn(
+      @Param("productId") String productId, @Param("statuses") Collection<OrderStatus> statuses);
 }

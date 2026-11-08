@@ -10,6 +10,7 @@ import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.exception.InvalidOrderStatusTransitionException;
 import com.gryffindor.excalibur.model.exception.InvalidRequestException;
 import com.gryffindor.excalibur.model.exception.OrderCancellationNotAllowedException;
+import com.gryffindor.excalibur.model.exception.ProductDeletionNotAllowedException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -59,6 +60,13 @@ public class ErrorHandler {
       OrderCancellationNotAllowedException exception) {
     logger.warn("Order cancellation rejected: {}", exception.getMessage());
     return constructErrorResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), null);
+  }
+
+  @ExceptionHandler(ProductDeletionNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleProductDeletionNotAllowedException(
+      ProductDeletionNotAllowedException exception) {
+    logger.warn("Product deletion rejected: {}", exception.getMessage());
+    return constructErrorResponse(HttpStatus.CONFLICT, exception.getMessage(), null);
   }
 
   @ExceptionHandler(AccessDeniedException.class)

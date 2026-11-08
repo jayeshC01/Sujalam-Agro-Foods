@@ -7,16 +7,20 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.gryffindor.excalibur.model.constants.OrderStatus;
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.exception.DuplicateProductException;
 import com.gryffindor.excalibur.model.exception.InvalidRequestException;
+import com.gryffindor.excalibur.model.exception.ProductDeletionNotAllowedException;
 import com.gryffindor.excalibur.model.request.ProductRequest;
 import com.gryffindor.excalibur.model.request.ProductUpdateRequest;
 import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.model.response.ProductResponse;
+import com.gryffindor.excalibur.repository.OrderRepository;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +42,7 @@ import org.springframework.http.ResponseEntity;
 class ProductServiceTest {
 
   @Mock private ProductRepository productRepository;
+  @Mock private OrderRepository orderRepository;
 
   private ProductService productService;
 
@@ -45,7 +50,7 @@ class ProductServiceTest {
 
   @BeforeEach
   void setUp() {
-    productService = new ProductService(productRepository);
+    productService = new ProductService(productRepository, orderRepository);
 
     product = new Product();
     product.setId("p1");
@@ -482,6 +487,21 @@ class ProductServiceTest {
     assertThat(product.getStatus()).isEqualTo(Product.Status.INACTIVE);
     verify(productRepository).save(product);
     verify(productRepository, never()).deleteById(any());
+  }
+
+  @Test
+  @DisplayName("deleteProduct throws and never modifies when the product has pending orders")
+  void deleteProduct_throwsAndDoesNotDelete_whenPendingOrdersExist() {
+    when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+    when(orderRepository.existsByProductIdAndOrderStatusIn(
+            "p1", EnumSet.of(OrderStatus.PROCESSING, OrderStatus.PACKED, OrderStatus.SHIPPED)))
+        .thenReturn(true);
+
+    assertThatThrownBy(() -> productService.deleteProduct("p1"))
+        .isInstanceOf(ProductDeletionNotAllowedException.class)
+        .hasMessageContaining("pending orders");
+    assertThat(product.getStatus()).isEqualTo(Product.Status.ACTIVE);
+    verify(productRepository, never()).save(any());
   }
 
   @Test

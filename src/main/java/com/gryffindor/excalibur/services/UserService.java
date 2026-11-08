@@ -79,7 +79,10 @@ public class UserService {
     user.setEmail(principal.email());
     user.setFirstName(request.getFirstName().trim());
     user.setLastName(request.getLastName() != null ? request.getLastName().trim() : null);
-    user.setPhoneNumber(request.getPhoneNumber().trim());
+    user.setPhoneNumber(
+        request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()
+            ? request.getPhoneNumber().trim()
+            : null);
     user.setRole(role);
     user.setStatus(User.Status.ACTIVE);
 
@@ -99,7 +102,10 @@ public class UserService {
     User currentUser = memberIdentityHandlerService.getLoggedInUser();
     currentUser.setFirstName(request.getFirstName().trim());
     currentUser.setLastName(request.getLastName() != null ? request.getLastName().trim() : null);
-    currentUser.setPhoneNumber(request.getPhoneNumber().trim());
+    currentUser.setPhoneNumber(
+        request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()
+            ? request.getPhoneNumber().trim()
+            : null);
 
     userRepository.save(currentUser);
     log.info("User {} updated profile", currentUser.getId());

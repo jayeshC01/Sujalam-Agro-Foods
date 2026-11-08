@@ -15,7 +15,6 @@ public class RegisterUser {
 
   private String lastName;
 
-  @NotBlank(message = "Phone number cannot be empty")
-  @Pattern(regexp = "^[0-9]{10}$", message = "Phone number must be a valid 10-digit number")
+  @Pattern(regexp = "^$|^[0-9]{10}$", message = "Phone number must be a valid 10-digit number")
   private String phoneNumber;
 }

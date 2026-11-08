@@ -11,6 +11,7 @@ import com.gryffindor.excalibur.model.exception.InsufficientStockException;
 import com.gryffindor.excalibur.model.exception.InvalidOrderStatusTransitionException;
 import com.gryffindor.excalibur.model.exception.InvalidRequestException;
 import com.gryffindor.excalibur.model.exception.OrderCancellationNotAllowedException;
+import com.gryffindor.excalibur.model.exception.ProductDeletionNotAllowedException;
 import com.gryffindor.excalibur.model.exception.UserNotRegisteredException;
 import com.gryffindor.excalibur.model.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -283,5 +284,18 @@ class ErrorHandlerTest {
     assertThat(response.getBody().getMessage())
         .isEqualTo(
             "Order cannot be cancelled once it has been packed or shipped. Current status: PACKED");
+  }
+
+  @Test
+  void handleProductDeletionNotAllowedException_returnsConflict() {
+    ResponseEntity<ErrorResponse> response =
+        errorHandler.handleProductDeletionNotAllowedException(
+            new ProductDeletionNotAllowedException(
+                "Product with id p1 has pending orders. Deletion cannot be performed"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getMessage())
+        .isEqualTo("Product with id p1 has pending orders. Deletion cannot be performed");
   }
 }

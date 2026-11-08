@@ -1,14 +1,18 @@
 package com.gryffindor.excalibur.services;
 
+import com.gryffindor.excalibur.model.constants.OrderStatus;
 import com.gryffindor.excalibur.model.db.Product;
 import com.gryffindor.excalibur.model.exception.DuplicateProductException;
 import com.gryffindor.excalibur.model.exception.InvalidRequestException;
+import com.gryffindor.excalibur.model.exception.ProductDeletionNotAllowedException;
 import com.gryffindor.excalibur.model.request.ProductRequest;
 import com.gryffindor.excalibur.model.request.ProductUpdateRequest;
 import com.gryffindor.excalibur.model.response.PageResponse;
 import com.gryffindor.excalibur.model.response.ProductResponse;
+import com.gryffindor.excalibur.repository.OrderRepository;
 import com.gryffindor.excalibur.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
+import java.util.EnumSet;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,11 +30,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProductService {
   private static final Logger log = LoggerFactory.getLogger(ProductService.class);
 
+  private static final EnumSet<OrderStatus> PENDING_ORDER_STATUSES =
+      EnumSet.of(OrderStatus.PROCESSING, OrderStatus.PACKED, OrderStatus.SHIPPED);
+
   private final ProductRepository productRepository;
+  private final OrderRepository orderRepository;
 
   @Autowired
-  ProductService(ProductRepository productRepository) {
+  ProductService(ProductRepository productRepository, OrderRepository orderRepository) {
     this.productRepository = productRepository;
+    this.orderRepository = orderRepository;
   }
 
   private Sort createSort(String sortBy, String sortDirection) {
@@ -225,6 +234,11 @@ public class ProductService {
                 () ->
                     new EntityNotFoundException(
                         "Product with id " + id + " not found. Deletion cannot be performed"));
+
+    if (orderRepository.existsByProductIdAndOrderStatusIn(id, PENDING_ORDER_STATUSES)) {
+      throw new ProductDeletionNotAllowedException(
+          "Product with id " + id + " has pending orders. Deletion cannot be performed");
+    }
 
     product.setStatus(Product.Status.INACTIVE);
     Product savedProduct = productRepository.save(product);
